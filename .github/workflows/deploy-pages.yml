@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -82,7 +82,7 @@ jobs:
   # ====== 版本打标（仅 push master）======
 
   tag:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [codeql, dependency-review, audit, test]
     runs-on: ubuntu-latest
     outputs:
@@ -110,10 +110,10 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-  # ====== 构建 + 部署 Pages（仅 push master）======
+  # ====== 构建 + 部署 Pages（仅 push main）======
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [tag, codeql, dependency-review, audit, test]
     runs-on: ubuntu-latest
     environment:
