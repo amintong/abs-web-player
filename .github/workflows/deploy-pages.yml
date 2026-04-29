@@ -1,7 +1,9 @@
-name: Deploy to GitHub Pages
+name: CI/CD
 
 on:
   push:
+    branches: [master]
+  pull_request:
     branches: [master]
   workflow_dispatch:
 
@@ -9,27 +11,88 @@ permissions:
   contents: write
   pages: write
   id-token: write
-  security-events: write   # CodeQL 需要写安全事件
+  security-events: write
   actions: read
+  pull-requests: write    # 能在 PR 上显示检查状态
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  # ====== 1. 版本打标 ======
+  # ====== PR 和安全扫描（push 和 PR 都运行）======
+
+  # CodeQL 安全代码分析
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  # 依赖安全审查
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  # 依赖审计
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # Playwright 测试
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+      - name: Run tests
+        run: npx playwright test
+        env:
+          CI: true
+
+  # ====== 版本打标（仅 push master）======
+
   tag:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [codeql, dependency-review, audit, test]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read-version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-
       - name: Read VERSION file
         id: read-version
         run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Check if tag already exists
+      - name: Check if tag exists
         id: check-tag
         run: |
           TAG="v$(cat VERSION)"
@@ -38,7 +101,6 @@ jobs:
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
-
       - name: Create tag
         if: steps.check-tag.outputs.exists != 'true'
         run: |
@@ -48,40 +110,11 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-  # ====== 2. 安全扫描 ======
-  security:
-    needs: tag
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # ====== 构建 + 部署 Pages（仅 push master）======
 
-      # 2a. CodeQL 代码分析（检测安全漏洞）
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          queries: security-and-quality
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-      # 2b. 依赖漏洞扫描
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-
-      # 2c. npm audit 依赖审计
-      - name: npm audit
-        run: npm audit --audit-level=high
-        continue-on-error: true
-
-  # ====== 3. 构建 + 部署 ======
-  build-and-deploy:
-    needs: [tag, security]
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [tag, codeql, dependency-review, audit, test]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -96,7 +129,6 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      # 注入 GitHub Secrets 作为构建时的 .env（可选）
       - name: Create .env from secrets
         run: |
           echo "VITE_ABS_SERVER=${{ secrets.ABS_SERVER }}" >> .env
@@ -113,6 +145,5 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-
       - id: deployment
         uses: actions/deploy-pages@v4
