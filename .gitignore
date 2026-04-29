@@ -33,6 +33,8 @@ pnpm-debug.log*
 
 # Testing
 coverage
+test-results
 
-# PWA
+# Build artifacts
 dev-dist
+*.tsbuildinfo
