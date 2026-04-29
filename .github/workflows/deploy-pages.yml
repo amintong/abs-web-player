@@ -40,8 +40,9 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-  # 依赖安全审查
+  # 依赖安全审查（仅 PR 时可对比 base ref）
   dependency-review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
