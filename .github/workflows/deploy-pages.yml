@@ -84,7 +84,7 @@ jobs:
 
   tag:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [codeql, dependency-review, audit, test]
+    needs: [codeql, audit, test]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read-version.outputs.version }}
@@ -115,7 +115,7 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [tag, codeql, dependency-review, audit, test]
+    needs: [tag, codeql, audit, test]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
