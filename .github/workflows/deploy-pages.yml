@@ -6,20 +6,22 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write    # 需要写权限来创建 tag
+  contents: write
   pages: write
   id-token: write
+  security-events: write   # CodeQL 需要写安全事件
+  actions: read
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
+  # ====== 1. 版本打标 ======
   tag:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read-version.outputs.version }}
-      tag_exists: ${{ steps.check-tag.outputs.exists }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +35,6 @@ jobs:
           TAG="v$(cat VERSION)"
           if git fetch --tags origin "$TAG" 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Tag $TAG already exists, skipping"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
@@ -47,8 +48,40 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-  build-and-deploy:
+  # ====== 2. 安全扫描 ======
+  security:
     needs: tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 2a. CodeQL 代码分析（检测安全漏洞）
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      # 2b. 依赖漏洞扫描
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+      # 2c. npm audit 依赖审计
+      - name: npm audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+  # ====== 3. 构建 + 部署 ======
+  build-and-deploy:
+    needs: [tag, security]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -56,7 +89,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -65,7 +97,6 @@ jobs:
       - run: npm ci --ignore-scripts
 
       # 注入 GitHub Secrets 作为构建时的 .env（可选）
-      # 如果未配置 Secrets，用户可在登录页手动录入服务器信息
       - name: Create .env from secrets
         run: |
           echo "VITE_ABS_SERVER=${{ secrets.ABS_SERVER }}" >> .env
@@ -79,7 +110,6 @@ jobs:
       - run: npm run build
 
       - uses: actions/configure-pages@v4
-
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
