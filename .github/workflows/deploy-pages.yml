@@ -129,13 +129,6 @@ jobs:
 
       - run: npm ci --ignore-scripts
 
-      - name: Create .env from secrets
-        run: |
-          echo "VITE_ABS_SERVER=${{ secrets.ABS_SERVER }}" >> .env
-          echo "VITE_ABS_USERNAME=${{ secrets.ABS_USERNAME }}" >> .env
-          echo "VITE_ABS_PASSWORD=${{ secrets.ABS_PASSWORD }}" >> .env
-        continue-on-error: true
-
       - name: Set base path
         run: echo "VITE_BASE_PATH=/${{ github.event.repository.name }}/" >> $GITHUB_ENV
 
