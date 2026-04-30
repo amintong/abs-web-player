@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useAppStore } from '../store/appStore';
@@ -7,14 +7,15 @@ import { getAuthorName } from '../utils/helpers';
 
 export default function MiniPlayer() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     isPlaying, currentItem, currentTime, duration,
     isMiniPlayerVisible, pause, resume, skipBackward, skipForward,
   } = usePlayerStore();
   const { skipForwardSeconds, skipBackwardSeconds } = useAppStore();
 
-  // 在全屏播放器页面不显示迷你播放器
-  if (!isMiniPlayerVisible || !currentItem || window.location.pathname === '/player') return null;
+  // 在全屏播放器页面不显示迷你播放器（使用 React Router location，适配子路径）
+  if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 

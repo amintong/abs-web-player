@@ -38,7 +38,7 @@ function ProtectedRoutes() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/library/:libraryId" element={<LibraryPage />} />
