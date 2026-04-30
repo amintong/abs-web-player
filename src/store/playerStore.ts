@@ -169,6 +169,10 @@ export function loadChapter(index: number) {
   const rate = state.playbackRate;
   audio.src = getAudioUrl(state.currentItem.id, chapter.ino);
   prefetchAudio(audio.src);
+  // 预取下一章节
+  if (index < state.chapters.length - 1) {
+    prefetchAudio(getAudioUrl(state.currentItem.id, state.chapters[index + 1].ino));
+  }
   // 设置 src 会重置 playbackRate，立即恢复
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
@@ -270,6 +274,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     audio.src = getAudioUrl(item.id, targetChapter.ino);
     prefetchAudio(audio.src);
+    // 预取下一章节
+    if (targetChapterIndex < chapters.length - 1) {
+      prefetchAudio(getAudioUrl(item.id, chapters[targetChapterIndex + 1].ino));
+    }
     audio.volume = get().volume;
     audio.playbackRate = get().playbackRate;
 
