@@ -57,8 +57,8 @@ const prefetchedUrls = new Set<string>();
 function prefetchAudio(url: string) {
   if (prefetchedUrls.has(url)) return;
   prefetchedUrls.add(url);
-  // 请求前 15MB（约20分钟 64kbps），触发浏览器缓存
-  fetch(url, { headers: { Range: 'bytes=0-15728640' } }).catch(() => {});
+  // 请求前 50MB（约60分钟 64kbps），触发浏览器缓存
+  fetch(url, { headers: { Range: 'bytes=0-52428800' } }).catch(() => {});
   // 同时用 link preload 提示浏览器优先加载
   try {
     const link = document.createElement('link');
