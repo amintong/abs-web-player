@@ -149,11 +149,17 @@ export function loadChapter(index: number) {
   const chapter = state.chapters[index];
   if (!chapter || !state.currentItem) return false;
   const audio = getAudio();
+  const rate = state.playbackRate;
   audio.src = getAudioUrl(state.currentItem.id, chapter.ino);
+  // 设置 src 会重置 playbackRate，立即恢复
+  if (rate !== 1) audio.playbackRate = rate;
+  audio.volume = state.volume;
   audio.play();
 
   const checkLoaded = () => {
     if (audio.readyState >= 2) {
+      // 确保加载完成后速率正确（部分浏览器在 src 变更后重置）
+      if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ duration: audio.duration, currentTime: 0, isPlaying: !audio.paused });
       const settings = useSkipSettings.getState().getBookSettings(state.currentItem!.id);
       if (settings.autoSkipIntro && settings.introSeconds > 0 && audio.duration > settings.introSeconds) {
