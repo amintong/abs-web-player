@@ -51,20 +51,6 @@ interface PlayerState {
 
 let audioEl: HTMLAudioElement | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
-let audioCtx: AudioContext | null = null;
-let gainNode: GainNode | null = null;
-
-function initVolumeControl(audio: HTMLAudioElement) {
-  try {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    gainNode = audioCtx.createGain();
-    const source = audioCtx.createMediaElementSource(audio);
-    source.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-  } catch (e) {
-    console.warn('AudioContext unavailable, volume via GainNode may not work');
-  }
-}
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
@@ -74,7 +60,6 @@ function getAudio(): HTMLAudioElement {
     audioEl.setAttribute('playsinline', '');
     audioEl.style.display = 'none';
     document.body.appendChild(audioEl);
-    initVolumeControl(audioEl);
   }
   return audioEl;
 }
@@ -263,14 +248,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.volume = get().volume;
     audio.playbackRate = get().playbackRate;
 
-    // 恢复 AudioContext（iOS 需要用户手势后 resume）
-    if (audioCtx?.state === 'suspended') {
-      audioCtx.resume();
-    }
-    if (gainNode) {
-      gainNode.gain.value = get().volume;
-    }
-
     audio.play().then(() => {
       if (chapterOffset > 0) {
         const seekTo = Math.min(chapterOffset, audio.duration || targetChapter.duration);
@@ -335,7 +312,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: (time: number) => { getAudio().currentTime = Math.max(0, Math.min(time, getAudio().duration || 0)); },
   setVolume: (vol: number) => {
     const volClamped = Math.max(0, Math.min(1, vol));
-    if (gainNode) gainNode.gain.value = volClamped;
     getAudio().volume = volClamped;
     set({ volume: volClamped });
   },
