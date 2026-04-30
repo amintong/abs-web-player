@@ -157,7 +157,7 @@ export function loadChapter(index: number) {
   audio.play();
 
   const checkLoaded = () => {
-    if (audio.readyState >= 2) {
+    if (audio.readyState >= 3) {
       // 确保加载完成后速率正确（部分浏览器在 src 变更后重置）
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ duration: audio.duration, currentTime: 0, isPlaying: !audio.paused });
