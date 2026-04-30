@@ -82,45 +82,58 @@ function getAudio(): HTMLAudioElement {
 }
 
 function startProgressLoop() {
-  function update() {
-    const state = usePlayerStore.getState();
-    const audio = getAudio();
-    if (audio && !audio.paused) {
-      const ct = audio.currentTime;
-      usePlayerStore.setState({ currentTime: ct });
+  const audio = getAudio();
 
-      // 自动跳过
-      if (state.currentItem) {
-        const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
-        if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds) {
-          audio.currentTime = settings.introSeconds;
-        }
-        if (settings.autoSkipOutro && settings.outroSeconds > 0 && state.currentChapter) {
-          const chapterEnd = state.currentChapter.duration;
-          if (ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
-            const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
-            if (idx < chs.length - 1) {
-              audio.currentTime = chapterEnd;
-            }
+  // 用 timeupdate 事件替代 requestAnimationFrame
+  // iOS 锁屏后 rAF 会暂停，但 timeupdate 仍会触发
+  const onTimeUpdate = () => {
+    if (audio.paused) return;
+    const state = usePlayerStore.getState();
+    const ct = audio.currentTime;
+    usePlayerStore.setState({ currentTime: ct });
+
+    // 自动跳过（锁屏后仍生效）
+    if (state.currentItem) {
+      const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
+      if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds) {
+        audio.currentTime = settings.introSeconds;
+      }
+      if (settings.autoSkipOutro && settings.outroSeconds > 0 && state.currentChapter) {
+        const chapterEnd = state.currentChapter.duration;
+        if (ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
+          const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
+          if (idx < chs.length - 1) {
+            audio.currentTime = chapterEnd;
           }
         }
       }
-
-      // 睡眠模式
-      if (state.sleepTimeRemaining !== null) {
-        const remaining = state.sleepTimeRemaining - 1;
-        if (remaining <= 0) {
-          audio.pause();
-          usePlayerStore.setState({ isPlaying: false, sleepTimer: null, sleepTimeRemaining: null });
-        } else {
-          usePlayerStore.setState({ sleepTimeRemaining: remaining });
-        }
-      }
-
-      requestAnimationFrame(update);
     }
-  }
-  requestAnimationFrame(update);
+  };
+
+  audio.addEventListener('timeupdate', onTimeUpdate);
+
+  // 睡眠模式用 setInterval 独立处理（锁屏后会降频但仍能工作）
+  const sleepInterval = setInterval(() => {
+    const state = usePlayerStore.getState();
+    if (!state.isPlaying) return;
+    if (state.sleepTimeRemaining !== null) {
+      const remaining = state.sleepTimeRemaining - 1;
+      if (remaining <= 0) {
+        audio.pause();
+        usePlayerStore.setState({ isPlaying: false, sleepTimer: null, sleepTimeRemaining: null });
+        clearInterval(sleepInterval);
+      } else {
+        usePlayerStore.setState({ sleepTimeRemaining: remaining });
+      }
+    }
+  }, 1000);
+
+  // 清理函数，供外部调用
+  (audio as any).__cleanupProgress = () => {
+    audio.removeEventListener('timeupdate', onTimeUpdate);
+    clearInterval(sleepInterval);
+    delete (audio as any).__cleanupProgress;
+  };
 }
 
 function createChapters(item: ABSMediaItem): PlayerChapter[] {
@@ -166,6 +179,7 @@ export function loadChapter(index: number) {
   const chapter = state.chapters[index];
   if (!chapter || !state.currentItem) return false;
   const audio = getAudio();
+  if ((audio as any).__cleanupProgress) (audio as any).__cleanupProgress();
   const rate = state.playbackRate;
   audio.src = getAudioUrl(state.currentItem.id, chapter.ino);
   prefetchAudio(audio.src);
@@ -225,6 +239,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   play: async (item) => {
     const audio = getAudio();
+    // 清理旧的事件监听
+    if ((audio as any).__cleanupProgress) (audio as any).__cleanupProgress();
     audio.pause();
     audio.src = '';
 
