@@ -150,7 +150,7 @@ export default function PlayerPage() {
       </div>
 
       {/* 音量 */}
-      <div className="flex items-center gap-4 px-8 pb-6">
+      <div className="flex items-center gap-4 px-8 pb-8" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}>
         <button onClick={() => setVolume(volume > 0 ? 0 : 1)} className="p-2 rounded-full hover:bg-white/10">
           {volume === 0 ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-gray-400" />}
         </button>
