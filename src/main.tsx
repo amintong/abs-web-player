@@ -20,14 +20,17 @@ createRoot(document.getElementById('root')!).render(
 // 确保用户始终运行最新代码
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl }).catch(() => {});
-  });
+    navigator.serviceWorker.register(`${baseUrl}sw.js`, { scope: baseUrl }).then((reg) => {
+      // 每 5 分钟主动检查 SW 更新（PWA 默认不自动检测）
+      setInterval(() => { reg.update().catch(() => {}); }, 300000);
+    }).catch(() => {});
 
-  let prevController: ServiceWorker | null = navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (prevController) {
-      window.location.reload();
-    }
-    prevController = navigator.serviceWorker.controller;
+    let prevController: ServiceWorker | null = navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (prevController) {
+        window.location.reload();
+      }
+      prevController = navigator.serviceWorker.controller;
+    });
   });
 }
