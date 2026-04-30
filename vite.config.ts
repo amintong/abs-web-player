@@ -3,14 +3,20 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
 import path from 'path'
+import fs from 'fs'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// 从 VERSION 文件读取版本号
+const appVersion = fs.readFileSync(path.resolve(__dirname, 'VERSION'), 'utf-8').trim();
+
 // GitHub Pages 部署路径：https://<user>.github.io/<repo>/
-// 默认为 /，如需部署到子路径，设置环境变量 VITE_BASE_PATH
 const basePath = process.env.VITE_BASE_PATH || '/';
 
 export default defineConfig({
   base: basePath,
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -25,6 +31,7 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
+        version: appVersion,
         scope: basePath,
         start_url: basePath,
         icons: [
