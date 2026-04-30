@@ -63,7 +63,7 @@ export default function PlayerPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="h-full overflow-hidden bg-black flex flex-col">
       {/* 顶部栏 */}
       <div className="flex items-center justify-between px-4 h-14 flex-shrink-0">
         <button onClick={() => window.history.back()} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">

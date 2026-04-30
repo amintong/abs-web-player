@@ -197,7 +197,7 @@ export default function SettingsPage() {
             <Info className="w-5 h-5 text-gray-400" />
             <div>
               <p className="text-white">Audiobookshelf Player</p>
-              <p className="text-xs text-gray-500">版本 1.0.0</p>
+              <p className="text-xs text-gray-500">版本 {__APP_VERSION__}</p>
             </div>
           </div>
         </div>
