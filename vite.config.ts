@@ -7,7 +7,7 @@ import fs from 'fs'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // 从 VERSION 文件读取版本号
-const appVersion = fs.readFileSync(path.resolve(__dirname, 'VERSION'), 'utf-8').trim();
+const appVersion = fs.readFileSync(path.resolve(__dirname, 'public', 'VERSION'), 'utf-8').trim();
 
 // GitHub Pages 部署路径：https://<user>.github.io/<repo>/
 const basePath = process.env.VITE_BASE_PATH || '/';
