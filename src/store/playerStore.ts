@@ -51,6 +51,23 @@ interface PlayerState {
 
 let audioEl: HTMLAudioElement | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
+const prefetchedUrls = new Set<string>();
+
+/** 预取音频数据到浏览器 HTTP 缓存，减少变速播放时的卡顿 */
+function prefetchAudio(url: string) {
+  if (prefetchedUrls.has(url)) return;
+  prefetchedUrls.add(url);
+  // 请求前 15MB（约20分钟 64kbps），触发浏览器缓存
+  fetch(url, { headers: { Range: 'bytes=0-15728640' } }).catch(() => {});
+  // 同时用 link preload 提示浏览器优先加载
+  try {
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'audio';
+    link.href = url;
+    document.head.appendChild(link);
+  } catch {}
+}
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
@@ -151,6 +168,7 @@ export function loadChapter(index: number) {
   const audio = getAudio();
   const rate = state.playbackRate;
   audio.src = getAudioUrl(state.currentItem.id, chapter.ino);
+  prefetchAudio(audio.src);
   // 设置 src 会重置 playbackRate，立即恢复
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
@@ -251,6 +269,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     });
 
     audio.src = getAudioUrl(item.id, targetChapter.ino);
+    prefetchAudio(audio.src);
     audio.volume = get().volume;
     audio.playbackRate = get().playbackRate;
 
