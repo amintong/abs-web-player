@@ -95,7 +95,7 @@ function startProgressLoop() {
     // 自动跳过（锁屏后仍生效）
     if (state.currentItem) {
       const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
-      if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds) {
+      if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds && state.currentChapter && state.currentChapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
       }
       if (settings.autoSkipOutro && settings.outroSeconds > 0 && state.currentChapter) {
@@ -198,7 +198,7 @@ export function loadChapter(index: number) {
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ duration: audio.duration, currentTime: 0, isPlaying: !audio.paused });
       const settings = useSkipSettings.getState().getBookSettings(state.currentItem!.id);
-      if (settings.autoSkipIntro && settings.introSeconds > 0 && audio.duration > settings.introSeconds) {
+      if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
       }
       startProgressLoop();
