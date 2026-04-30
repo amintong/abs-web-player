@@ -84,7 +84,7 @@ function getAudio(): HTMLAudioElement {
 function startProgressLoop() {
   const audio = getAudio();
 
-  // 用 timeupdate 事件替代 requestAnimationFrame
+  // 统一用 timeupdate 事件处理所有逻辑（锁屏/非锁屏行为一致）
   // iOS 锁屏后 rAF 会暂停，但 timeupdate 仍会触发
   const onTimeUpdate = () => {
     if (audio.paused) return;
@@ -108,6 +108,17 @@ function startProgressLoop() {
         }
       }
     }
+
+    // 检测章节自然结束，自动切下一章（锁屏/非锁屏一致）
+    if (state.currentChapter && ct >= state.currentChapter.duration) {
+      const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
+      if (idx < chs.length - 1) {
+        usePlayerStore.getState().playNextChapter();
+      } else {
+        audio.pause();
+        usePlayerStore.setState({ isPlaying: false, currentTime: state.currentChapter.duration });
+      }
+    }
   };
 
   audio.addEventListener('timeupdate', onTimeUpdate);
@@ -128,7 +139,7 @@ function startProgressLoop() {
     }
   }, 1000);
 
-  // 清理函数，供外部调用
+  // 清理函数
   (audio as any).__cleanupProgress = () => {
     audio.removeEventListener('timeupdate', onTimeUpdate);
     clearInterval(sleepInterval);
@@ -190,7 +201,10 @@ export function loadChapter(index: number) {
   // 设置 src 会重置 playbackRate，立即恢复
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
-  audio.play();
+  audio.play().catch(() => {
+    // iOS 锁屏时 audio.play() 可能被拒绝
+    usePlayerStore.setState({ isPlaying: false });
+  });
 
   const checkLoaded = () => {
     if (audio.readyState >= 3) {
@@ -332,15 +346,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       console.warn('Audio play rejected:', err.message);
       set({ isPlaying: false });
     });
-
-    audio.onended = () => {
-      const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
-      if (idx < chs.length - 1) {
-        usePlayerStore.getState().playNextChapter();
-      } else {
-        set({ isPlaying: false });
-      }
-    };
 
     audio.onerror = () => {
       console.warn('Audio error:', audio.error?.message);
