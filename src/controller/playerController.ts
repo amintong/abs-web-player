@@ -184,11 +184,15 @@ async function loadChapter(index: number): Promise<boolean> {
   audio.volume = s.volume;
 
   // 等待音频就绪（readyState >= 3 或超时），同时发起 play()
+  // 注意：iOS 后台 rAF 不执行，用 setTimeout 兜底保证后台切章也能推进
   await new Promise<void>((resolve) => {
     const TIMEOUT = 15000;
     const t0 = performance.now();
+    let settled = false;
 
     const onError = () => {
+      if (settled) return;
+      settled = true;
       playerWarn('lifecycle', `章节加载失败 · 第${index + 1}章`, { error: audio.error?.message || 'unknown' });
       audio.removeEventListener('error', onError);
       resolve();
@@ -197,27 +201,35 @@ async function loadChapter(index: number): Promise<boolean> {
 
     audio.play().catch(() => { usePlayerStore.setState({ isPlaying: false }); });
 
-    const poll = () => {
+    const tryResolve = () => {
+      if (settled) return;
       if (audio.readyState >= 3) {
+        settled = true;
         audio.removeEventListener('error', onError);
         if (audio.playbackRate !== rate) audio.playbackRate = rate;
         resolve();
       } else if (performance.now() - t0 > TIMEOUT) {
+        settled = true;
         audio.removeEventListener('error', onError);
         playerWarn('chapter', `章节加载超时 · 第${index + 1}章 · readyState=${audio.readyState}`);
         resolve();
-      } else {
-        requestAnimationFrame(poll);
       }
     };
-    requestAnimationFrame(poll);
+
+    // rAF：前台高频轮询
+    const rafPoll = () => { if (!settled) { tryResolve(); if (!settled) requestAnimationFrame(rafPoll); } };
+    requestAnimationFrame(rafPoll);
+
+    // setTimeout 兜底：后台 rAF 停止时仍能推进（每200ms检查一次）
+    const bgPoll = setInterval(() => { tryResolve(); if (settled) clearInterval(bgPoll); }, 200);
   });
 
-  // 音频就绪后立即检查片头跳过（不等 watchdog 1.2s 延迟）
+  // 音频就绪后立即跳过片头（不等 watchdog，锁屏下也保证执行）
+  // 无条件 seek，不判断 ct 是否 < introSeconds——锁屏下就绪时 ct 可能已经超过 intro
   const itemId = usePlayerStore.getState().currentItem?.id;
   if (itemId) {
     const cfg = Config.getBook(itemId);
-    if (cfg.autoSkipIntro && cfg.introSeconds > 0 && audio.currentTime < cfg.introSeconds) {
+    if (cfg.autoSkipIntro && cfg.introSeconds > 0) {
       playerLog('chapter', `片头跳过 · ${audio.currentTime.toFixed(1)}s → ${cfg.introSeconds}s`);
       audio.currentTime = cfg.introSeconds;
     }
