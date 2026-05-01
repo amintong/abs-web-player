@@ -7,7 +7,7 @@
  * - 不经过 store，不触发全局重渲染，只有使用此 hook 的组件更新
  */
 import { useState, useEffect, useRef } from 'react';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 
 interface AudioTime {
   currentTime: number;   // 当前章节内时间（秒）

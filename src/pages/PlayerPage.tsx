@@ -3,7 +3,7 @@ import {
   Play, Pause, SkipBack, SkipForward,
   Moon, ChevronDown, Settings2, List,
 } from 'lucide-react';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { Config } from '../utils/configManager';
 import type { BookSkipConfig } from '../utils/configManager';

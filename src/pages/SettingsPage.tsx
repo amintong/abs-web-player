@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 import { logout } from '../api/audiobookshelf';
 import { checkForUpdates, applyUpdate } from '../sw';
 import { AudioCache } from '../utils/audioCache';

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, List, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { getItem, getCoverUrl, getProgress } from '../api/audiobookshelf';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 import { ABSMediaItem } from '../types';
 import { formatTime, formatDuration, getAuthorName } from '../utils/helpers';
 

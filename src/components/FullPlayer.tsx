@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBackIcon, SkipForwardIcon, Volume2, VolumeX, Moon, ChevronDown, Settings2 } from 'lucide-react';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';

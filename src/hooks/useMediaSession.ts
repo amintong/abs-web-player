@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore } from '../controller/playerController';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
 import { Config } from '../utils/configManager';
