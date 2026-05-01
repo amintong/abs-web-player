@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { logout } from '../api/audiobookshelf';
+import { checkForUpdates, applyUpdate } from '../sw';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -16,6 +17,18 @@ export default function SettingsPage() {
   const [editDefaultOutro, setEditDefaultOutro] = useState(String(skipSettings.defaultOutroSeconds));
   const [editSkipForward, setEditSkipForward] = useState(String(skipForwardSeconds));
   const [editSkipBackward, setEditSkipBackward] = useState(String(skipBackwardSeconds));
+  const [updateStatus, setUpdateStatus] = useState('');
+
+  const handleCheckUpdate = async () => {
+    setUpdateStatus('检查中...');
+    const result = await checkForUpdates();
+    if (result.hasUpdate && confirm(result.message)) {
+      applyUpdate();
+    } else {
+      setUpdateStatus(result.message);
+      setTimeout(() => setUpdateStatus(''), 4000);
+    }
+  };
 
   const handleSaveDefaults = () => {
     const intro = parseInt(editDefaultIntro) || 15;
@@ -193,12 +206,20 @@ export default function SettingsPage() {
           <div className="px-4 py-3 border-b border-white/5">
             <h2 className="text-sm font-medium text-gray-400">关于</h2>
           </div>
-          <div className="px-4 py-4 flex items-center gap-3">
-            <Info className="w-5 h-5 text-gray-400" />
-            <div>
-              <p className="text-white">Audiobookshelf Player</p>
-              <p className="text-xs text-gray-500">版本 {__APP_VERSION__}</p>
+          <div className="px-4 py-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Info className="w-5 h-5 text-gray-400" />
+              <div>
+                <p className="text-white">Audiobookshelf Player</p>
+                <p className="text-xs text-gray-500">版本 {__APP_VERSION__}</p>
+              </div>
             </div>
+            <button onClick={handleCheckUpdate} disabled={updateStatus === '检查中...'}
+              className="flex items-center gap-2 text-sm text-purple-400 hover:text-purple-300 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${updateStatus === '检查中...' ? 'animate-spin' : ''}`} />
+              {updateStatus || '检查更新'}
+            </button>
           </div>
         </div>
 
