@@ -12,6 +12,7 @@ import { formatTime } from '../utils/helpers';
 import SlideUpPanel from '../components/SlideUpPanel';
 import Slider from '../components/Slider';
 import { useAudioTime } from '../hooks/useAudioTime';
+import { playerLog } from '../utils/playerLogger';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -409,15 +410,22 @@ export default function PlayerPage() {
       <TransportBar
         isPlaying={isPlaying} playbackRate={playbackRate} sleepActive={!!sleepTimeRemaining}
         skipFwdSec={skipForwardSeconds} skipBwdSec={skipBackwardSeconds}
-        onTogglePlay={isPlaying ? pause : resume}
+        onTogglePlay={() => {
+          if (isPlaying) { playerLog('lifecycle', '[UI] 暂停按钮'); pause(); }
+          else { playerLog('lifecycle', '[UI] 播放按钮'); resume(); }
+        }}
         onSpeedClick={() => setShowSpeedPicker(!showSpeedPicker)}
         onSleepClick={() => setShowSleepPicker(!showSleepPicker)}
-        onSkipForward={skipForward} onSkipBackward={skipBackward}
+        onSkipForward={(s) => { playerLog('lifecycle', `[UI] 快进 ${s}s`); skipForward(s); }}
+        onSkipBackward={(s) => { playerLog('lifecycle', `[UI] 后退 ${s}s`); skipBackward(s); }}
       />
 
       {/* 弹出面板 */}
       {showSpeedPicker && (
-        <SpeedPicker current={playbackRate} speeds={playbackSpeeds} onSelect={(s) => { setPlaybackRate(s); setShowSpeedPicker(false); }} />
+        <SpeedPicker current={playbackRate} speeds={playbackSpeeds} onSelect={(s) => {
+          playerLog('lifecycle', `[UI] 倍速切换 → ${s}x`);
+          setPlaybackRate(s); setShowSpeedPicker(false);
+        }} />
       )}
       {showSleepPicker && (
         <SleepPicker
@@ -437,7 +445,10 @@ export default function PlayerPage() {
       <ChapterPicker
         visible={showChapterPicker} onClose={() => setShowChapterPicker(false)}
         chapters={chapters} currentIdx={currentChapterIndex}
-        onSelect={switchToChapter}
+        onSelect={async (idx) => {
+          playerLog('chapter', `[UI] 用户切章 → 第${idx + 1}章 · ${chapters[idx]?.title || ''}`);
+          await switchToChapter(idx);
+        }}
       />
     </div>
   );

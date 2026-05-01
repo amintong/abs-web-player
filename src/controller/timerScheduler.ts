@@ -43,6 +43,8 @@ export interface SchedulerDeps {
   getBookConfig: (itemId: string) => { autoSkipIntro: boolean; introSeconds: number; autoSkipOutro: boolean; outroSeconds: number };
   /** 进度同步 API */
   syncProgress: (libraryItemId: string, currentTime: number, duration: number) => void;
+  /** 触发下一章（由 playerController 注入，避免循环引用） */
+  playNextChapter: () => void;
   /** 日志 */
   log: (module: string, msg: string, data?: Record<string, unknown>) => void;
   warn: (module: string, msg: string, data?: Record<string, unknown>) => void;
@@ -82,8 +84,10 @@ let lastWasPlaying = false;
 export function initScheduler() {
   if (!_deps) throw new Error('[TimerScheduler] 未初始化依赖，请先调用 initSchedulerDeps()');
   if (schedulerInterval) return;
+  // 注意：不在此处立即 tick()，因为 initScheduler 在 store create 回调内被调用，
+  // 此时 usePlayerStore 尚在 TDZ，立即访问 getState 会触发 ReferenceError。
+  // 首次 tick 延迟 500ms，此时 store 已就绪。
   schedulerInterval = setInterval(tick, 500);
-  tick(); // 立即执行一次，防止初始状态遗漏
   deps().log('system', 'TimerScheduler 已启动 · 轮询频率 500ms');
 }
 
@@ -137,6 +141,13 @@ function startAllTimers() {
       const cfg = d.getBookConfig(st.currentItem.id);
       const end = st.currentChapter.duration;
 
+      // 每秒静默打印（DevTools Verbose 级别，不写入页面日志缓冲）
+      console.debug(
+        `%c[watchdog]%c ct=${ct.toFixed(1)}s end=${end.toFixed(1)}s remain=${(end - ct).toFixed(1)}s` +
+        ` | intro=${cfg.autoSkipIntro}/${cfg.introSeconds}s outro=${cfg.autoSkipOutro}/${cfg.outroSeconds}s`,
+        'color:#38bdf8', 'color:inherit'
+      );
+
       // 片头跳过
       if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
         d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
@@ -145,15 +156,19 @@ function startAllTimers() {
       }
       // 片尾切章
       if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {
+        d.log('watchdog', `片尾触发 · ct=${ct.toFixed(1)}s >= end-outro=${(end - cfg.outroSeconds).toFixed(1)}s`);
         finishOrNext(audio); return;
       }
       // 自然结束
-      if (ct >= end) finishOrNext(audio);
+      if (ct >= end) {
+        d.log('watchdog', `自然结束触发 · ct=${ct.toFixed(1)}s >= end=${end.toFixed(1)}s`);
+        finishOrNext(audio);
+      }
     }
 
     wdInterval = setInterval(() => { if (!audio.paused) check(); }, 1000);
-    check(); // 立即检查一次
-    audio.onended = () => finishOrNext(audio);
+    // 延迟首次检查，给 audio seek 留足时间（避免 currentTime=0 误判章节结束）
+    setTimeout(() => { if (!audio.paused) check(); }, 1200);
   }
 
   // ── 4b. 进度同步 ──
@@ -208,11 +223,6 @@ function shutdownAllTimers() {
   if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; d?.log('sync', '关闭'); }
   if (sleepTimerId) { clearInterval(sleepTimerId); sleepTimerId = null; d?.log('sleep', '关闭'); }
 
-  if (_deps) {
-    const audio = _deps.getAudio();
-    if (audio) audio.onended = null;
-  }
-
   if (hadAny) d?.log('lifecycle', '全部定时任务已关闭（Scheduler 驱动）');
 }
 
@@ -220,8 +230,15 @@ function shutdownAllTimers() {
 // 共享工具 & 公开 API
 // ════════════════════════════════════════
 
+/** 防止 watchdog interval + onended 同时触发双重切章 */
+let _finishLock = false;
+
 function finishOrNext(audio: HTMLAudioElement) {
+  if (_finishLock) return;
   if (!_deps) return;
+  _finishLock = true;
+  setTimeout(() => { _finishLock = false; }, 2000); // 2s 后解锁（切章期间不重入）
+
   const d = deps();
   const s = d.getStoreState();
   const idx = s.currentChapterIndex;
@@ -230,13 +247,7 @@ function finishOrNext(audio: HTMLAudioElement) {
   if (idx < chapters.length - 1) {
     d.log('chapter', `章节切换 · ${idx + 1} → ${idx + 2}`);
     // 延迟调用打破同步栈（避免在 watchdog interval callback 中直接修改状态）
-    setTimeout(() => {
-      if (!_deps) return;
-      const dd = deps();
-      // 通过 store 的 playNextChapter 方法触发下一章
-      const storeWithCommands = dd.getStoreState() as { playNextChapter?: () => void };
-      storeWithCommands.playNextChapter?.();
-    }, 0);
+    setTimeout(() => { _deps && deps().playNextChapter(); }, 0);
   } else {
     d.log('lifecycle', '全书播放完毕');
     audio.pause();

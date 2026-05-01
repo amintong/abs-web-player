@@ -5,6 +5,7 @@ import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
 import { Config } from '../utils/configManager';
 import { useAudioTime } from '../hooks/useAudioTime';
+import { playerLog } from '../utils/playerLogger';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -54,14 +55,17 @@ function TransportControls() {
   return (
     <div className="MiniPlayer-controls flex items-center gap-1">
       <button
-        onClick={() => skipBackward(skipBackwardSeconds)}
+        onClick={() => { playerLog('lifecycle', `[UI] MiniPlayer 后退 ${skipBackwardSeconds}s`); skipBackward(skipBackwardSeconds); }}
         className="p-2 rounded-full hover:bg-white/10 transition-colors"
         aria-label="后退"
       >
         <SkipBack className="w-5 h-5 text-white" />
       </button>
       <button
-        onClick={() => isPlaying ? pause() : resume()}
+        onClick={() => {
+          if (isPlaying) { playerLog('lifecycle', '[UI] MiniPlayer 暂停'); pause(); }
+          else { playerLog('lifecycle', '[UI] MiniPlayer 播放'); resume(); }
+        }}
         className="p-3 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-transform"
         aria-label={isPlaying ? '暂停' : '播放'}
       >
@@ -70,7 +74,7 @@ function TransportControls() {
           : <Play className="w-5 h-5 fill-current ml-0.5" />}
       </button>
       <button
-        onClick={() => skipForward(skipForwardSeconds)}
+        onClick={() => { playerLog('lifecycle', `[UI] MiniPlayer 快进 ${skipForwardSeconds}s`); skipForward(skipForwardSeconds); }}
         className="p-2 rounded-full hover:bg-white/10 transition-colors"
         aria-label="快进"
       >

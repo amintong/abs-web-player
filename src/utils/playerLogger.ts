@@ -38,6 +38,17 @@ function now(): string {
 /**
  * 写入一条日志（内部用，外部通过下面的便捷方法）
  */
+const CONSOLE_STYLES: Record<LogModule, string> = {
+  lifecycle:  'color:#4ade80',  // green
+  chapter:    'color:#60a5fa',  // blue
+  cache:      'color:#a78bfa',  // purple
+  sync:       'color:#facc15',  // yellow
+  background: 'color:#fb923c',  // orange
+  sleep:      'color:#f472b6',  // pink
+  watchdog:   'color:#38bdf8',  // sky
+  system:     'color:#94a3b8',  // slate
+};
+
 function log(level: LogLevel, module: LogModule, message: string, data?: Record<string, unknown>) {
   const entry: LogEntry = {
     id: ++nextId,
@@ -51,6 +62,18 @@ function log(level: LogLevel, module: LogModule, message: string, data?: Record<
   // 环形裁剪
   if (entries.length > MAX_ENTRIES) entries = entries.slice(-MAX_ENTRIES);
   notify();
+
+  // ── 控制台输出 ──
+  const prefix = `%c[${module}]%c ${entry.timestamp} ${message}`;
+  const moduleStyle = CONSOLE_STYLES[module] ?? 'color:inherit';
+  const resetStyle = 'color:inherit';
+  if (level === 'warn') {
+    data ? console.warn(prefix, moduleStyle, resetStyle, data) : console.warn(prefix, moduleStyle, resetStyle);
+  } else if (level === 'error') {
+    data ? console.error(prefix, moduleStyle, resetStyle, data) : console.error(prefix, moduleStyle, resetStyle);
+  } else {
+    data ? console.log(prefix, moduleStyle, resetStyle, data) : console.log(prefix, moduleStyle, resetStyle);
+  }
 }
 
 // ====== 公开 API =======
@@ -89,10 +112,3 @@ export function subscribeLogs(fn: (logs: LogEntry[]) => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
-// ====== 控制台同步输出（仅 dev）======
-
-if (import.meta.env.DEV) {
-  // 开发环境同时输出到控制台
-  const _origLog = log;
-  (globalThis as any).__playerLoggerOrig = _origLog;
-}

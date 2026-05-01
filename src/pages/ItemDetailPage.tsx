@@ -5,6 +5,7 @@ import { getItem, getCoverUrl, getProgress } from '../api/audiobookshelf';
 import { usePlayerStore } from '../controller/playerController';
 import { ABSMediaItem } from '../types';
 import { formatTime, formatDuration, getAuthorName } from '../utils/helpers';
+import { playerLog } from '../utils/playerLogger';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -24,8 +25,8 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
 /** 封面图区域 */
 function DetailCover({ itemId, title }: { itemId: string; title?: string }) {
   return (
-    <div className="Detail-cover relative px-6 pt-6 pb-8">
-      <div className="w-48 h-48 mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+    <div className="Detail-cover relative px-6 pt-3 pb-3">
+      <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
         <img src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
       </div>
     </div>
@@ -38,11 +39,11 @@ function DetailInfo({ title, author, narrator, duration, fileCount, chapterCount
   duration?: number; fileCount: number; chapterCount: number;
 }) {
   return (
-    <div className="Detail-info px-6 text-center mb-8">
-      <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
-      <p className="text-gray-400 mb-1">{author}</p>
-      {narrator && <p className="text-sm text-gray-500">朗读: {narrator}</p>}
-      <div className="flex items-center justify-center gap-4 mt-3 text-sm text-gray-400">
+    <div className="Detail-info px-6 text-center mb-3">
+      <h1 className="text-lg font-bold text-white mb-1 line-clamp-1">{title}</h1>
+      <p className="text-gray-400 text-sm">{author}</p>
+      {narrator && <p className="text-xs text-gray-500">朗读: {narrator}</p>}
+      <div className="flex items-center justify-center gap-3 mt-1.5 text-xs text-gray-400">
         <span>{formatDuration(duration || 0)}</span>
         <span>&middot;</span>
         <span>{fileCount} 个文件</span>
@@ -56,12 +57,12 @@ function DetailInfo({ title, author, narrator, duration, fileCount, chapterCount
 /** 播放按钮 */
 function PlayButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <div className="Detail-playBtn px-6 mb-8">
+    <div className="Detail-playBtn px-6 mb-2">
       <button
         onClick={onPlay}
-        className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold rounded-2xl py-4 hover:bg-gray-100 active:scale-[0.98] transition-all"
+        className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold rounded-2xl py-3 hover:bg-gray-100 active:scale-[0.98] transition-all"
       >
-        <Play className="w-6 h-6 fill-current" />开始播放
+        <Play className="w-5 h-5 fill-current" />开始播放
       </button>
     </div>
   );
@@ -105,38 +106,36 @@ const ChapterRow = React.forwardRef<HTMLButtonElement, {
 
 /** 章节列表区块 */
 function ChapterSection({
-  chapters, savedProgress, onPlay,
+  chapters, savedProgress, activeIndex, onSelectChapter,
 }: {
   chapters: import('../types').ABSChapter[];
   savedProgress: number;
-  onPlay: () => void;
+  activeIndex: number;
+  onSelectChapter: (index: number) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const listRef = useRef<HTMLDivElement>(null);
   const currentRef = useRef<HTMLButtonElement>(null);
 
-  // 找当前章节
-  let currentIdx = -1;
-  for (let i = 0; i < chapters.length; i++) {
-    if (savedProgress >= chapters[i].start && savedProgress < chapters[i].end) {
-      currentIdx = i; break;
-    }
-  }
-  if (currentIdx === -1 && savedProgress > 0 && chapters.length > 0) currentIdx = chapters.length - 1;
-
-  // 展开时自动滚动到当前章节（居中）
+  // activeIndex 变化时，在章节列表容器内滚动到当前章节（居中）
   useEffect(() => {
-    if (expanded && currentRef.current) {
-      requestAnimationFrame(() => {
-        currentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    }
-  }, [expanded]);
+    if (!expanded || !currentRef.current || !listRef.current) return;
+    requestAnimationFrame(() => {
+      const container = listRef.current!;
+      const target = currentRef.current!;
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const offset = targetRect.top - containerRect.top - containerRect.height / 2 + targetRect.height / 2;
+      container.scrollBy({ top: offset, behavior: 'smooth' });
+    });
+  }, [expanded, activeIndex]);
 
   return (
-    <div className="Detail-chapters px-4">
+    <div className="Detail-chapters flex flex-col min-h-0 flex-1">
+      {/* 章节标题栏（不随列表滚动） */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-2 py-3 text-white font-medium"
+        className="w-full flex items-center justify-between px-6 py-3 text-white font-medium flex-shrink-0 border-t border-white/5"
       >
         <div className="flex items-center gap-2">
           <List className="w-5 h-5" />章节列表 ({chapters.length})
@@ -145,28 +144,18 @@ function ChapterSection({
       </button>
 
       {expanded && (
-        <div className="space-y-1 mt-2">
+        <div ref={listRef} className="overflow-y-auto flex-1 px-4 pb-4 space-y-1">
           {chapters.map((chapter, index) => (
             <ChapterRow
               key={chapter.id} chapter={chapter} index={index}
-              isCurrent={index === currentIdx}
-              isCompleted={savedProgress > 0 && chapter.end <= savedProgress}
-              onClick={onPlay}
-              ref={index === currentIdx ? currentRef : undefined}
+              isCurrent={index === activeIndex}
+              isCompleted={savedProgress > 0 && chapter.end <= savedProgress && index !== activeIndex}
+              onClick={() => onSelectChapter(index)}
+              ref={index === activeIndex ? currentRef : undefined}
             />
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/** 简介 */
-function Description({ text }: { text: string }) {
-  return (
-    <div className="Description px-6 mt-8 mb-8">
-      <h2 className="text-lg font-semibold text-white mb-3">简介</h2>
-      <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">{text}</p>
     </div>
   );
 }
@@ -176,7 +165,11 @@ function Description({ text }: { text: string }) {
 export default function ItemDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
-  const { play } = usePlayerStore();
+  const {
+    play, switchToChapter,
+    libraryItemId: playingItemId, isPlaying,
+    currentChapterIndex: storeChapterIndex,
+  } = usePlayerStore();
 
   const [item, setItem] = useState<ABSMediaItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,23 +196,69 @@ export default function ItemDetailPage() {
   const chapters = item.media?.chapters || [];
   const audioFiles = item.media?.audioFiles || [];
 
+  // 当前高亮章节：同书播放中用 store 实时值，否则从 savedProgress 算
+  const isThisBookPlaying = playingItemId === item.id;
+  let activeIndex = -1;
+  if (isThisBookPlaying) {
+    activeIndex = storeChapterIndex;
+  } else {
+    for (let i = 0; i < chapters.length; i++) {
+      if (savedProgress >= chapters[i].start && savedProgress < chapters[i].end) {
+        activeIndex = i; break;
+      }
+    }
+    if (activeIndex === -1 && savedProgress > 0 && chapters.length > 0) activeIndex = chapters.length - 1;
+  }
+
+  /** 章节行点击：已播放同书直接切章，否则先 play 再切 */
+  const handleSelectChapter = async (index: number) => {
+    playerLog('chapter', `[UI] 详情页切章 → 第${index + 1}章`, { itemId: item.id });
+    if (isPlaying && isThisBookPlaying) {
+      await switchToChapter(index);
+    } else {
+      await play(item);
+      await switchToChapter(index);
+    }
+  };
+
   return (
-    <div className="flex flex-col pb-20">
-      <DetailHeader onBack={() => navigate(-1)} />
-      <DetailCover itemId={item.id} title={item.media?.metadata?.title} />
-      <DetailInfo
-        title={item.media?.metadata?.title}
-        author={getAuthorName(item)}
-        narrator={item.media?.metadata?.narratorName}
-        duration={item.media?.duration}
-        fileCount={audioFiles.length}
-        chapterCount={chapters.length}
-      />
-      <PlayButton onPlay={() => item && play(item)} />
+    <div className="h-full flex flex-col overflow-hidden">
+      {/*
+       * 上半 58%：
+       *   导航栏  56px
+       *   封面    pt-3(12) + 128 + pb-3(12) = 152px
+       *   书籍信息 ≈ 118px（含narrator行）
+       *   播放按钮 ≈ 56px
+       *   合计 ≈ 382px / 最小屏667px = 57.3% → 取58%确保不溢出
+       */}
+      <div className="flex-none overflow-hidden" style={{ height: '58%' }}>
+        <DetailHeader onBack={() => navigate(-1)} />
+        <DetailCover itemId={item.id} title={item.media?.metadata?.title} />
+        <DetailInfo
+          title={item.media?.metadata?.title}
+          author={getAuthorName(item)}
+          narrator={item.media?.metadata?.narratorName}
+          duration={item.media?.duration}
+          fileCount={audioFiles.length}
+          chapterCount={chapters.length}
+        />
+        <PlayButton onPlay={() => {
+          playerLog('lifecycle', '[UI] 详情页播放按钮', { itemId: item.id });
+          play(item);
+        }} />
+      </div>
+
+      {/* 下半 42%：章节列表独立滚动 */}
       {chapters.length > 0 && (
-        <ChapterSection chapters={chapters} savedProgress={savedProgress} onPlay={() => item && play(item)} />
+        <div className="flex-none overflow-hidden flex flex-col" style={{ height: '42%' }}>
+          <ChapterSection
+            chapters={chapters}
+            savedProgress={savedProgress}
+            activeIndex={activeIndex}
+            onSelectChapter={handleSelectChapter}
+          />
+        </div>
       )}
-      {item.media?.metadata?.description && <Description text={item.media.metadata.description} />}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { registerSW } from './sw';
+import { initPlayerModules } from './controller/playerController';
 import './index.css';
 
 const baseUrl = import.meta.env.BASE_URL || '/';
@@ -48,6 +49,7 @@ if (window.visualViewport) {
 }
 
 registerSW();
+initPlayerModules();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
