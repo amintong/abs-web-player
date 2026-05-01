@@ -1,10 +1,13 @@
 /**
  * 极简调试模式 — 一键开关
  *
- * 开启后：页面组件直接显示彩色边框 + 尺寸标签
+ * 开启后：
+ *   1. 页面组件显示彩色边框 + 尺寸标签
+ *   2. 左下角实时日志浮窗（最近30条，自动滚底）
  * 关闭后：零侵入，无任何残留
  */
 import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
+import { subscribeLogs, LogEntry } from '../utils/playerLogger';
 
 interface CompInfo { id: string; name: string; el: HTMLElement | null; color: string }
 
@@ -24,7 +27,6 @@ export function DebugTag({ id, name, children }: { id: string; name: string; chi
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
 
-  // 调试模式开启时注册并监听尺寸
   useEffect(() => {
     if (!ctx.on || !ref.current) return;
     const raf = requestAnimationFrame(() => ctx.register(id, name, ref.current));
@@ -49,7 +51,6 @@ export function DebugTag({ id, name, children }: { id: string; name: string; chi
 
   return (
     <div ref={ref} style={{ outline: `2px solid ${colorFor(id)}`, outlineOffset: -1 }} data-did={id}>
-      {/* 标签 */}
       <span
         className="absolute -top-4 left-0 z-[99999] text-[9px] font-mono font-bold px-1 py-px rounded pointer-events-none select-none leading-none"
         style={{ background: colorFor(id), color: '#000', whiteSpace: 'nowrap' }}
@@ -57,6 +58,60 @@ export function DebugTag({ id, name, children }: { id: string; name: string; chi
         {name} {size.w > 0 && <span className="opacity-60">{size.w}×{size.h}</span>}
       </span>
       {children}
+    </div>
+  );
+}
+
+/** 实时日志浮窗（仅调试模式） */
+function DebugLogPanel() {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return subscribeLogs((all) => setLogs(all.slice(-30)));
+  }, []);
+
+  // 自动滚到底
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [logs.length > 0 ? logs[logs.length - 1].id : 0]);
+
+  function formatEntry(e: LogEntry) {
+    const dataStr = e.data ? ' ' + JSON.stringify(e.data).slice(0, 120) : '';
+    const isWarn = e.level === 'warn' || e.level === 'error';
+    return `[${e.timestamp}] ${isWarn ? '⚠️' : ''}[${e.module}] ${e.message}${dataStr}`;
+  }
+
+  return (
+    <div
+      className="fixed z-[99998] left-2 bottom-2 w-[min(92vw,480px)] max-h-[40vh] rounded-lg overflow-hidden shadow-xl"
+      style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)' }}
+    >
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-mono font-bold border-b border-white/10" style={{ color: '#9ca3af' }}>
+        <span>📜 PLAYER LOGS ({logs.length})</span>
+      </div>
+      {/* 日志列表 */}
+      <div className="overflow-y-auto p-2 space-y-0.5" style={{ maxHeight: 'calc(40vh - 32px)' }}>
+        {logs.length === 0 && (
+          <div className="text-[10px] font-mono" style={{ color: '#6b7280' }}>等待日志...</div>
+        )}
+        {logs.map(e => (
+          <pre
+            key={e.id}
+            className="text-[10px] font-mono leading-tight whitespace-pre-wrap break-all m-0"
+            style={{
+              color: e.level === 'warn' ? '#fbbf24' : e.level === 'error' ? '#f87171' : '#d1d5db',
+              padding: '1px 0',
+              margin: 0,
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+            }}
+          >
+            {formatEntry(e)}
+          </pre>
+        ))}
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }
@@ -95,6 +150,9 @@ export default function DebugMode({ children }: { children: React.ReactNode }) {
       >
         {on ? '✕' : '🐛'}
       </button>
+
+      {/* 实时日志 */}
+      {on && <DebugLogPanel />}
     </Ctx.Provider>
   );
 }
