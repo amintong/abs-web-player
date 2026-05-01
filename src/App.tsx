@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppStore } from './store/appStore';
+import { usePlayerStore } from './store/playerStore';
 import { useMediaSession } from './hooks/useMediaSession';
-import { getCurrentUser, getLibraries } from './api/audiobookshelf';
+import { getCurrentUser, getLibraries, getItem } from './api/audiobookshelf';
+import { getSession } from './store/playerStore';
 
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -29,6 +31,20 @@ function ProtectedRoutes() {
         if (user.mediaProgress) setMediaProgress(user.mediaProgress);
         const libs = await getLibraries();
         setLibraries(libs);
+
+        // ====== 锁屏/PWA 后台恢复：检查 session 自动续播 ======
+        const session = getSession();
+        if (session?.libraryItemId) {
+          try {
+            const item = await getItem(session.libraryItemId);
+            if (item) {
+              // play() 内部会读取 session 精确位置并自动跳转
+              usePlayerStore.getState().play(item as any);
+            }
+          } catch {
+            console.warn('Session restore: failed to fetch item', session.libraryItemId);
+          }
+        }
       } catch { /* 使用 persist 数据 */ }
     })();
   }, [isAuthenticated]);

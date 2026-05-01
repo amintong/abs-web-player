@@ -6,6 +6,65 @@ import { ABSProgress } from '../types';
 import { AudioCache } from '../utils/audioCache';
 import { Config } from '../utils/configManager';
 
+// ========== Session 持久化：锁屏/后台恢复时保留播放状态 ==========
+const SESSION_KEY = 'abs-player-session';
+
+interface PlayerSession {
+  libraryItemId: string;
+  mediaItemId: string;
+  currentChapterIndex: number;
+  chapterIno: string;        // 用于恢复时重新获取 audio URL
+  chapterDuration: number;
+  currentTime: number;
+  isPlaying: boolean;
+  playbackRate: number;
+  volume: number;
+  timestamp: number;         // 保存时间戳，用于判断是否过期
+}
+
+function saveSession(state: Partial<PlayerState> & { chapters?: PlayerChapter[] }) {
+  try {
+    const audio = getAudio();
+    // 以音频元素的实际 currentTime 为准（比 store 更精确）
+    const actualTime = audio.src ? (audio.currentTime || 0) : 0;
+    const s: PlayerSession = {
+      libraryItemId: state.libraryItemId || '',
+      mediaItemId: state.mediaItemId || '',
+      currentChapterIndex: state.currentChapterIndex ?? 0,
+      chapterIno: state.chapters?.[state.currentChapterIndex ?? 0]?.ino || '',
+      chapterDuration: state.chapters?.[state.currentChapterIndex ?? 0]?.duration || 0,
+      currentTime: actualTime,
+      isPlaying: !!state.isPlaying,
+      playbackRate: state.playbackRate ?? 1,
+      volume: state.volume ?? 1,
+      timestamp: Date.now(),
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  } catch {
+    // sessionStorage 可能不可用（隐私模式等）
+  }
+}
+
+function getSession(): PlayerSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s: PlayerSession = JSON.parse(raw);
+    // 超过 24 小时的 session 视为过期，走服务端恢复流程
+    if (Date.now() - s.timestamp > 24 * 3600 * 1000) {
+      sessionStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch {}
+}
+
 export interface PlayerChapter {
   id: number; title: string; start: number; end: number;
   index: number; ino: string; duration: number;
@@ -232,11 +291,16 @@ export async function loadChapter(index: number) {
 // 根据各章节时长和当前章内时间，计算累计播放秒数（给服务端上报用）
 function getCumulativeTime(): number {
   const { chapters, currentChapterIndex, currentTime } = usePlayerStore.getState();
+  return getCumulativeFromChapters(chapters, currentChapterIndex, currentTime);
+}
+
+// 静态版本：用于非 store 状态下的计算（如 session 恢复时）
+function getCumulativeFromChapters(chapters: PlayerChapter[], chapterIdx: number, time: number): number {
   let cum = 0;
-  for (let i = 0; i < currentChapterIndex; i++) {
+  for (let i = 0; i < chapterIdx; i++) {
     cum += chapters[i]?.duration || 0;
   }
-  return cum + currentTime;
+  return cum + time;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -273,29 +337,39 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const libraryItemId = item.id;
     const mediaItemId = item.media?.id || '';
 
-    // 从服务器获取保存的播放进度（累计时间）
-    const { currentTime: savedCumulativeTime } = await getProgress(libraryItemId);
-
-    // 根据累计时间确定正确的章节和章内偏移
+    // ====== 进度恢复：优先 session（精确）→ 退回服务端（兜底）======
+    const session = getSession();
     let targetChapterIndex = 0;
     let chapterOffset = 0;
-    let cumulative = 0;
+    let savedCumulativeTime = 0;
 
-    if (savedCumulativeTime > 0) {
-      for (let i = 0; i < chapters.length; i++) {
-        const ch = chapters[i];
-        if (cumulative + ch.duration > savedCumulativeTime) {
-          targetChapterIndex = i;
-          chapterOffset = savedCumulativeTime - cumulative;
-          break;
+    if (session && session.libraryItemId === libraryItemId) {
+      // Session 命中：用本地保存的精确位置恢复
+      targetChapterIndex = Math.min(session.currentChapterIndex, chapters.length - 1);
+      chapterOffset = session.currentTime || 0;
+      savedCumulativeTime = getCumulativeFromChapters(chapters, targetChapterIndex, chapterOffset);
+      clearSession(); // 消费一次后清除
+    } else {
+      // 无 session 或不匹配：从服务端获取进度
+      const serverProgress = await getProgress(libraryItemId);
+      savedCumulativeTime = serverProgress.currentTime;
+      if (savedCumulativeTime > 0) {
+        let cumulative = 0;
+        for (let i = 0; i < chapters.length; i++) {
+          const ch = chapters[i];
+          if (cumulative + ch.duration > savedCumulativeTime) {
+            targetChapterIndex = i;
+            chapterOffset = savedCumulativeTime - cumulative;
+            break;
+          }
+          cumulative += ch.duration;
         }
-        cumulative += ch.duration;
+        if (targetChapterIndex === 0 && savedCumulativeTime >= cumulative && chapters.length > 0) {
+          targetChapterIndex = chapters.length - 1;
+          chapterOffset = chapters[targetChapterIndex].duration;
+        }
       }
-      // 如果累计时间超过了所有章节总长，定位到最后章节
-      if (targetChapterIndex === 0 && savedCumulativeTime >= cumulative && chapters.length > 0) {
-        targetChapterIndex = chapters.length - 1;
-        chapterOffset = chapters[targetChapterIndex].duration;
-      }
+      clearSession();
     }
 
     const targetChapter = chapters[targetChapterIndex];
@@ -346,10 +420,35 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         const state = usePlayerStore.getState();
         if (state.libraryItemId) {
           syncProgressNow(state.libraryItemId, getCumulativeTime(), state.duration);
+          saveSession(state); // 关闭/后台前保存 session
         }
       };
       window.addEventListener('beforeunload', doFinalSync);
-      audio.dataset.syncHandler = 'true';
+      // pagehide 比 beforeunload 更可靠（iOS PWA 后台时也会触发）
+      window.addEventListener('pagehide', doFinalSync);
+      // visibilitychange：页面切到后台时保存精确进度（锁屏场景关键！）
+      const onSaveSession = () => {
+        if (document.visibilityState === 'hidden') {
+          const state = usePlayerStore.getState();
+          if (state.libraryItemId) {
+            saveSession(state);
+            // 后台时立即同步一次进度（setInterval 在后台会被冻结）
+            syncProgressNow(state.libraryItemId, getCumulativeTime(), state.duration);
+          }
+        } else if (document.visibilityState === 'visible') {
+          // 从后台恢复：同步 audio 元素实际时间到 store
+          const audio = getAudio();
+          if (audio.src && !audio.paused) {
+            usePlayerStore.setState({ currentTime: audio.currentTime, isPlaying: true });
+          }
+        }
+      };
+      document.addEventListener('visibilitychange', onSaveSession);
+      (window as any).__playerCleanup = () => {
+        window.removeEventListener('beforeunload', doFinalSync);
+        window.removeEventListener('pagehide', doFinalSync);
+        document.removeEventListener('visibilitychange', onSaveSession);
+      };
     }).catch((err) => {
       console.warn('Audio play rejected:', err.message);
       set({ isPlaying: false });
@@ -368,6 +467,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const audio = getAudio();
     audio.pause(); audio.src = '';
     if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
+    if ((window as any).__playerCleanup) { (window as any).__playerCleanup(); delete (window as any).__playerCleanup; }
+    clearSession();
     set({ currentItem: null, isPlaying: false, currentTime: 0, isMiniPlayerVisible: false, isFullPlayerVisible: false, libraryItemId: null, mediaItemId: null, chapters: [], currentChapter: null });
   },
 
