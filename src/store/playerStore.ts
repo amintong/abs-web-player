@@ -19,6 +19,7 @@ import { useAppStore } from './appStore';
 import { ABSProgress } from '../types';
 import { AudioCache } from '../utils/audioCache';
 import { Config } from '../utils/configManager';
+import { playerLog, playerWarn } from '../utils/playerLogger';
 
 // ========== Session 持久化 ==========
 const SESSION_KEY = 'abs-player-session';
@@ -214,13 +215,19 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
   const audio = getAudio();
   const rate = state.playbackRate;
 
+  playerLog('chapter', `加载章节 ${index + 1}/${state.chapters.length}`, { title: chapter.title });
+
   const url = getAudioUrl(state.currentItem.id, chapter.ino);
   const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
+  if (cachedUrl !== url) {
+    playerLog('cache', `缓存命中 · 第${index + 1}章`);
+  }
   audio.src = cachedUrl;
 
   // 预取后续章节
   const chapterUrls = state.chapters.map(ch => getAudioUrl(state.currentItem!.id, ch.ino));
   AudioCache.getInstance().prefetchAhead(chapterUrls, index, 3);
+  playerLog('cache', `预取章节 ${index + 2}~${Math.min(index + 3, state.chapters.length) + 1}`);
 
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
@@ -237,6 +244,7 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
       const settings = Config.getBook(state.currentItem!.id);
       if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
+        playerLog('chapter', `自动跳过片头 · ${settings.introSeconds}s`);
       }
       setupChapterWatchdog();
     } else {
@@ -272,6 +280,7 @@ function setupChapterWatchdog() {
     if (settings.autoSkipOutro && settings.outroSeconds > 0 && ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
+        playerLog('chapter', `片尾自动切章 · 第${idx + 1}章 → 第${idx + 2}章`);
         usePlayerStore.getState().playNextChapter();
       } else {
         audio.pause();
@@ -285,8 +294,10 @@ function setupChapterWatchdog() {
     if (ct >= chapterEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
+        playerLog('chapter', `章节结束 · 第${idx + 1}章 → 第${idx + 2}章`);
         usePlayerStore.getState().playNextChapter();
       } else {
+        playerLog('play', '全书播放完毕');
         audio.pause();
         usePlayerStore.setState({ isPlaying: false });
         saveSession(usePlayerStore.getState());
@@ -324,6 +335,8 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
     }
   }, 15000);
 
+  playerLog('sync', `进度同步启动 · 累计${Math.round(savedCumulativeTime)}s`);
+
   // 首次立即同步
   const dur = usePlayerStore.getState().chapters?.[usePlayerStore.getState().currentChapterIndex]?.duration || 0;
   syncProgress(libraryItemId, savedCumulativeTime, dur);
@@ -337,6 +350,7 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
       const remaining = state.sleepTimeRemaining - 1;
       if (remaining <= 0) {
         audio.pause();
+        playerLog('sleep', '睡眠定时到 → 暂停');
         usePlayerStore.setState({ isPlaying: false, sleepTimer: null, sleepTimeRemaining: null });
         clearInterval(sleepIntervalId!); sleepIntervalId = null;
       } else {
@@ -349,8 +363,10 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
   const doFinalSync = () => {
     const state = usePlayerStore.getState();
     if (state.libraryItemId) {
-      syncProgressNow(state.libraryItemId, getCumulativeTime(state.chapters, state.currentChapterIndex, audio.currentTime), state.chapters[state.currentChapterIndex]?.duration || 0);
+      const ct = getCumulativeTime(state.chapters, state.currentChapterIndex, audio.currentTime);
+      syncProgressNow(state.libraryItemId, ct, state.chapters[state.currentChapterIndex]?.duration || 0);
       saveSession(state);
+      playerLog('background', `页面关闭 → 最终同步 + 保存 session · 累计${Math.round(ct)}s`);
     }
   };
 
@@ -364,12 +380,16 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
       saveSession(usePlayerStore.getState());
       const st = usePlayerStore.getState();
       if (st.libraryItemId) {
-        syncProgressNow(st.libraryItemId, getCumulativeTime(st.chapters, st.currentChapterIndex, audio.currentTime), st.chapters[st.currentChapterIndex]?.duration || 0);
+        const ct = getCumulativeTime(st.chapters, st.currentChapterIndex, audio.currentTime);
+        syncProgressNow(st.libraryItemId, ct, st.chapters[st.currentChapterIndex]?.duration || 0);
+        playerLog('background', `页面隐藏 → 保存 session + 最终同步 · 累计${Math.round(ct)}s`);
       }
     } else if (document.visibilityState === 'visible') {
       // 前台恢复：更新 isPlaying 状态（audio 元素可能在后台被系统暂停了）
       if (audio.src) {
-        usePlayerStore.setState({ isPlaying: !audio.paused });
+        const wasPaused = audio.paused;
+        usePlayerStore.setState({ isPlaying: !wasPaused });
+        playerLog('background', `页面可见 → 恢复状态 · ${wasPaused ? '已暂停' : '仍在播放'}`);
       }
     }
   };
@@ -409,6 +429,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.pause();
     audio.src = '';
 
+    playerLog('play', '开始播放', { title: item.media?.metadata?.title || item.id, itemId: item.id });
+
     const chapters = createChapters(item);
     if (chapters.length === 0) { console.warn('No chapters'); return; }
 
@@ -426,6 +448,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       chapterOffset = session.currentTime || 0;
       savedCumulativeTime = getCumulativeFromChapters(chapters, targetChapterIndex, chapterOffset);
       clearSession();
+      playerLog('session', 'Session 恢复', { chapter: targetChapterIndex + 1, offset: Math.round(chapterOffset) + 's', cumulative: Math.round(savedCumulativeTime) + 's' });
     } else {
       const serverProgress = await getProgress(libraryItemId);
       savedCumulativeTime = serverProgress.currentTime;
@@ -443,6 +466,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           targetChapterIndex = chapters.length - 1;
           chapterOffset = chapters[targetChapterIndex].duration;
         }
+        playerLog('sync', '服务端进度恢复', { chapter: targetChapterIndex + 1, offset: Math.round(chapterOffset) + 's', cumulative: Math.round(serverProgress.currentTime) + 's' });
       }
       clearSession();
     }
@@ -471,27 +495,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (chapterOffset > 0) {
         audio.currentTime = Math.min(chapterOffset, audio.duration || targetChapter.duration);
       }
+      playerLog('play', `播放已启动 · 第${targetChapterIndex + 1}/${chapters.length}章${chapterOffset ? ` · ${Math.round(chapterOffset)}s处恢复` : ''}`);
       set({ isPlaying: true });
       setupChapterWatchdog();
       startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
     }).catch((err) => {
       console.warn('Audio play rejected:', err.message);
+      playerWarn('play', '播放启动失败', { error: err.message });
       set({ isPlaying: false });
     });
 
     audio.onerror = () => {
       console.warn('Audio error:', audio.error?.message);
+      playerWarn('play', '音频加载错误', { error: audio.error?.message || 'unknown' });
       set({ isPlaying: false });
     };
   },
 
   pause: () => {
     getAudio().pause();
+    playerLog('play', '暂停');
     set({ isPlaying: false });
   },
 
   resume: () => {
-    getAudio().play().then(() => set({ isPlaying: true })).catch(() => {});
+    getAudio().play().then(() => { set({ isPlaying: true }); }).catch(() => {});
+    playerLog('play', '恢复播放');
   },
 
   stop: () => {
@@ -499,6 +528,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.pause(); audio.src = '';
     cleanupAll();
     clearSession();
+    playerLog('play', '完全停止');
     set({
       currentItem: null, isPlaying: false,
       isMiniPlayerVisible: false, isFullPlayerVisible: false,
@@ -534,6 +564,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentChapterIndex: idx, chapters } = get();
     if (idx >= chapters.length - 1) return;
     const nextIdx = idx + 1;
+    playerLog('chapter', `下一章 · ${idx + 1} → ${nextIdx + 1}`);
     await loadChapterInternal(nextIdx, get());
     set({ currentChapterIndex: nextIdx, currentChapter: chapters[nextIdx], isPlaying: true });
   },
@@ -542,10 +573,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentChapterIndex: idx, chapters } = get();
     const ct = getAudio().currentTime;
     if (ct > 3) {
+      playerLog('chapter', `重播当前章 · 第${idx + 1}章开头`);
       await loadChapterInternal(idx, get());
       getAudio().currentTime = 0;
     } else if (idx > 0) {
       const prevIdx = idx - 1;
+      playerLog('chapter', `上一章 · ${idx + 1} → ${prevIdx + 1}`);
       await loadChapterInternal(prevIdx, get());
       set({ currentChapterIndex: prevIdx, currentChapter: chapters[prevIdx], isPlaying: true });
     }
@@ -554,14 +587,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   switchToChapter: async (index: number) => {
     const { chapters } = get();
     if (index < 0 || index >= chapters.length) return;
+    playerLog('chapter', `切换章节 → 第${index + 1}章 · ${chapters[index].title}`);
     await loadChapterInternal(index, get());
     set({ currentChapterIndex: index, currentChapter: chapters[index], isPlaying: true });
   },
 
   // ====== 睡眠定时器 ======
 
-  setSleepTimer: (m: number | null) => set({ sleepTimer: m, sleepTimeRemaining: m ? m * 60 : null }),
-  clearSleepTimer: () => set({ sleepTimer: null, sleepTimeRemaining: null }),
+  setSleepTimer: (m: number | null) => {
+    if (m !== null) playerLog('sleep', `设定睡眠定时器 · ${m}分钟`);
+    set({ sleepTimer: m, sleepTimeRemaining: m ? m * 60 : null });
+  },
+  clearSleepTimer: () => {
+    playerLog('sleep', '清除睡眠定时器');
+    set({ sleepTimer: null, sleepTimeRemaining: null });
+  },
 
   // ====== UI 可见性 ======
 

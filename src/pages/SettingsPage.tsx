@@ -1,12 +1,102 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2 } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
 import { logout } from '../api/audiobookshelf';
 import { checkForUpdates, applyUpdate } from '../sw';
 import { AudioCache } from '../utils/audioCache';
 import { useAppConfig } from '../utils/configManager';
+import { clearLogs, subscribeLogs, type LogEntry, type LogModule } from '../utils/playerLogger';
+import SlideUpPanel from '../components/SlideUpPanel';
+
+// ====== 日志查看器组件 =======
+
+const MODULE_LABELS: Record<LogModule | 'all', string> = {
+  all: '全部', play: '播放', chapter: '章节', cache: '缓存',
+  session: 'Session', sync: '同步', background: '后台',
+  sleep: '睡眠', system: '系统',
+};
+
+const LEVEL_COLORS: Record<string, string> = {
+  info: 'text-gray-300', warn: 'text-yellow-400', error: 'text-red-400',
+};
+
+const MODULE_COLORS: Record<LogModule, string> = {
+  play: 'bg-purple-500/20 text-purple-300',
+  chapter: 'bg-blue-500/20 text-blue-300',
+  cache: 'bg-green-500/20 text-green-300',
+  session: 'bg-cyan-500/20 text-cyan-300',
+  sync: 'bg-orange-500/20 text-orange-300',
+  background: 'bg-pink-500/20 text-pink-300',
+  sleep: 'bg-indigo-500/20 text-indigo-300',
+  system: 'bg-gray-500/20 text-gray-300',
+};
+
+interface LogViewerProps {
+  logs: LogEntry[];
+  filter: LogModule | 'all';
+  onFilterChange: (f: LogModule | 'all') => void;
+  onClear: () => void;
+}
+
+function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
+  const filtered = filter === 'all' ? logs : logs.filter((l) => l.module === filter);
+  const reversed = [...filtered].reverse(); // 最新的在上面
+
+  const handleCopy = () => {
+    const text = reversed.map((l) => `[${l.timestamp}] [${l.module}] ${l.message}${l.data ? ' · ' + JSON.stringify(l.data) : ''}`).join('\n');
+    navigator.clipboard.writeText(text).catch(() => {});
+  };
+
+  return (
+    <div>
+      {/* 过滤栏 */}
+      <div className="flex items-center gap-2 mb-3 overflow-x-auto hide-scrollbar pb-1">
+        {(Object.keys(MODULE_LABELS) as (LogModule | 'all')[]).map((key) => (
+          <button key={key} onClick={() => onFilterChange(key)}
+            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+              filter === key ? 'bg-purple-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
+            }`}
+          >{MODULE_LABELS[key]}</button>
+        ))}
+      </div>
+
+      {/* 操作栏 */}
+      <div className="flex items-center gap-2 mb-3">
+        <button onClick={handleCopy} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-gray-300 hover:bg-white/20">
+          <Copy className="w-3 h-3" />复制全部
+        </button>
+        <button onClick={onClear} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-xs text-red-400 hover:bg-red-500/20">
+          <Trash2 className="w-3 h-3" />清空
+        </button>
+        <span className="ml-auto text-xs text-gray-600">显示 {filtered.length} / {logs.length}</span>
+      </div>
+
+      {/* 日志列表 */}
+      {reversed.length === 0 ? (
+        <div className="py-12 text-center text-gray-500 text-sm">暂无日志记录</div>
+      ) : (
+        <div className="overflow-y-auto max-h-[50vh] space-y-0.5 rounded-xl bg-black/30 p-2" style={{ paddingBottom: '0px' }}>
+          {reversed.map((entry) => (
+            <div key={entry.id} className="flex items-start gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 text-left">
+              <span className="text-[10px] text-gray-600 font-mono flex-shrink-0 pt-0.5 w-16">{entry.timestamp}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${MODULE_COLORS[entry.module] || MODULE_COLORS.system}`}>
+                {MODULE_LABELS[entry.module]}
+              </span>
+              <span className={`text-xs flex-1 min-w-0 leading-tight ${LEVEL_COLORS[entry.level] || LEVEL_COLORS.info}`}>
+                {entry.message}
+                {entry.data && (
+                  <span className="text-[10px] text-gray-600 ml-1 font-mono">{JSON.stringify(entry.data)}</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -20,6 +110,15 @@ export default function SettingsPage() {
   const [editSkipBackward, setEditSkipBackward] = useState(String(appConfig.skipBackwardSeconds));
   const [updateStatus, setUpdateStatus] = useState('');
   const [cacheInfo, setCacheInfo] = useState(() => AudioCache.getInstance().getCacheInfo());
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logFilter, setLogFilter] = useState<LogModule | 'all'>('all');
+
+  // 订阅日志变化
+  useEffect(() => {
+    const unsub = subscribeLogs((entries) => setLogs(entries));
+    return () => { unsub(); };
+  }, []);
 
   const refreshCacheInfo = () => setCacheInfo(AudioCache.getInstance().getCacheInfo());
 
@@ -256,6 +355,40 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-600">缓存由 LRU 自动管理（上限 300MB），通常无需手动清理。如遇到章节切换卡顿可尝试。</p>
           </div>
         </div>
+
+        {/* 播放器日志 */}
+        <div className="bg-white/5 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-gray-400" />
+              <h2 className="text-sm font-medium text-gray-400">播放器日志</h2>
+            </div>
+          </div>
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-gray-400">
+                {logs.length > 0
+                  ? `${logs.length} 条记录 · 最近 ${logs[logs.length - 1]?.timestamp || '-'}`
+                  : '暂无日志'}
+              </p>
+              <button onClick={() => setShowLogs(true)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  logs.length > 0 ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white/5 text-gray-600'
+                }`}
+              >
+                {logs.length > 0 ? '查看' : '空闲'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">播放、章节切换、片头片尾跳过、后台恢复等关键事件。</p>
+          </div>
+        </div>
+
+        {/* 日志查看面板 */}
+        <SlideUpPanel visible={showLogs} onClose={() => setShowLogs(false)} title={`播放器日志 (${logs.length})`}>
+          <LogViewer logs={logs} filter={logFilter} onFilterChange={setLogFilter}
+            onClear={() => { clearLogs(); setLogs([]); }}
+          />
+        </SlideUpPanel>
 
         {/* 登出 */}
         <button onClick={handleLogout}
