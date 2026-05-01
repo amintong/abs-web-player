@@ -1,23 +1,27 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
-import { useSkipSettings } from '../store/skipSettingsStore';
 import { logout } from '../api/audiobookshelf';
 import { checkForUpdates, applyUpdate } from '../sw';
+import { AudioCache } from '../utils/audioCache';
+import { useAppConfig } from '../utils/configManager';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, isDarkMode, toggleDarkMode, skipForwardSeconds, skipBackwardSeconds, setSkipForwardSeconds, setSkipBackwardSeconds, logout: appLogout } = useAppStore();
+  const { user, logout: appLogout } = useAppStore();
   const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
-  const skipSettings = useSkipSettings();
+  const [appConfig, updateApp] = useAppConfig();
 
-  const [editDefaultIntro, setEditDefaultIntro] = useState(String(skipSettings.defaultIntroSeconds));
-  const [editDefaultOutro, setEditDefaultOutro] = useState(String(skipSettings.defaultOutroSeconds));
-  const [editSkipForward, setEditSkipForward] = useState(String(skipForwardSeconds));
-  const [editSkipBackward, setEditSkipBackward] = useState(String(skipBackwardSeconds));
+  const [editDefaultIntro, setEditDefaultIntro] = useState(String(appConfig.defaultIntroSeconds));
+  const [editDefaultOutro, setEditDefaultOutro] = useState(String(appConfig.defaultOutroSeconds));
+  const [editSkipForward, setEditSkipForward] = useState(String(appConfig.skipForwardSeconds));
+  const [editSkipBackward, setEditSkipBackward] = useState(String(appConfig.skipBackwardSeconds));
   const [updateStatus, setUpdateStatus] = useState('');
+  const [cacheInfo, setCacheInfo] = useState(() => AudioCache.getInstance().getCacheInfo());
+
+  const refreshCacheInfo = () => setCacheInfo(AudioCache.getInstance().getCacheInfo());
 
   const handleCheckUpdate = async () => {
     setUpdateStatus('检查中...');
@@ -33,15 +37,13 @@ export default function SettingsPage() {
   const handleSaveDefaults = () => {
     const intro = parseInt(editDefaultIntro) || 15;
     const outro = parseInt(editDefaultOutro) || 10;
-    skipSettings.setDefaultIntro(intro);
-    skipSettings.setDefaultOutro(outro);
+    updateApp({ defaultIntroSeconds: intro, defaultOutroSeconds: outro });
   };
 
   const handleSaveSkipTimes = () => {
     const fwd = parseInt(editSkipForward) || 30;
     const bwd = parseInt(editSkipBackward) || 10;
-    setSkipForwardSeconds(fwd);
-    setSkipBackwardSeconds(bwd);
+    updateApp({ skipForwardSeconds: fwd, skipBackwardSeconds: bwd });
   };
 
   const handleLogout = () => {
@@ -190,13 +192,13 @@ export default function SettingsPage() {
           <div className="px-4 py-3 border-b border-white/5">
             <h2 className="text-sm font-medium text-gray-400">外观</h2>
           </div>
-          <button onClick={toggleDarkMode} className="w-full flex items-center justify-between px-4 py-4 hover:bg-white/5 transition-colors">
+          <button onClick={() => updateApp({ isDarkMode: !appConfig.isDarkMode })} className="w-full flex items-center justify-between px-4 py-4 hover:bg-white/5 transition-colors">
             <div className="flex items-center gap-3">
-              {isDarkMode ? <Moon className="w-5 h-5 text-gray-400" /> : <Sun className="w-5 h-5 text-gray-400" />}
+              {appConfig.isDarkMode ? <Moon className="w-5 h-5 text-gray-400" /> : <Sun className="w-5 h-5 text-gray-400" />}
               <span className="text-white">深色模式</span>
             </div>
-            <div className={`w-12 h-7 rounded-full p-1 transition-colors ${isDarkMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
-              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${isDarkMode ? 'translate-x-5' : 'translate-x-0'}`} />
+            <div className={`w-12 h-7 rounded-full p-1 transition-colors ${appConfig.isDarkMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
+              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${appConfig.isDarkMode ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
           </button>
         </div>
@@ -220,6 +222,38 @@ export default function SettingsPage() {
               <RefreshCw className={`w-4 h-4 ${updateStatus === '检查中...' ? 'animate-spin' : ''}`} />
               {updateStatus || '检查更新'}
             </button>
+          </div>
+        </div>
+
+        {/* 缓存管理 */}
+        <div className="bg-white/5 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-gray-400" />
+              <h2 className="text-sm font-medium text-gray-400">缓存管理</h2>
+            </div>
+          </div>
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-white text-sm">音频缓存</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {cacheInfo.entries > 0
+                    ? `${cacheInfo.entries} 个章节，约 ${cacheInfo.totalMB} MB`
+                    : '当前无缓存'}
+                </p>
+              </div>
+              <button onClick={() => {
+                AudioCache.getInstance().clear();
+                refreshCacheInfo();
+              }} disabled={cacheInfo.entries === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium
+                  hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="w-4 h-4" />清除缓存
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">缓存由 LRU 自动管理（上限 300MB），通常无需手动清理。如遇到章节切换卡顿可尝试。</p>
           </div>
         </div>
 

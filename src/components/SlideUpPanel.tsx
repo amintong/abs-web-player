@@ -77,7 +77,7 @@ export default function SlideUpPanel({ visible, onClose, children, title }: Slid
         onTouchEnd={handleTouchEnd}
         className="relative w-full bg-gray-900 rounded-t-3xl p-4"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom)',
+          paddingBottom: '0px',
           transform: `translateY(${translateY}px)`,
           transition: isAnimating ? 'transform 0.25s ease' : 'none',
         }}

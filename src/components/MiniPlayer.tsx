@@ -1,9 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
-import { useAppStore } from '../store/appStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
+import { Config } from '../utils/configManager';
 
 export default function MiniPlayer() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function MiniPlayer() {
     isPlaying, currentItem, currentTime, duration,
     isMiniPlayerVisible, pause, resume, skipBackward, skipForward,
   } = usePlayerStore();
-  const { skipForwardSeconds, skipBackwardSeconds } = useAppStore();
+  const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
 
   // 在全屏播放器页面不显示迷你播放器（使用 React Router location，适配子路径）
   if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;
@@ -22,7 +22,7 @@ export default function MiniPlayer() {
   return (
     <div
       className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 border-t border-white/10"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: '0px' }}
     >
       <div className="h-0.5 bg-white/10">
         <div className="h-full bg-purple-500 transition-all duration-100" style={{ width: `${progress}%` }} />

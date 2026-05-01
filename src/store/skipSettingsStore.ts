@@ -1,26 +1,13 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useSyncExternalStore, useCallback } from 'react';
+import { Config, type BookSkipConfig } from '../utils/configManager';
 
-export interface BookSkipSettings {
-  introSeconds: number;
-  outroSeconds: number;
-  autoSkipIntro: boolean;
-  autoSkipOutro: boolean;
-}
+export type { BookSkipConfig };
 
 interface SkipSettingsState {
-  // 全局默认值
   defaultIntroSeconds: number;
   defaultOutroSeconds: number;
 
-  // 按书保存的设置 { [bookId]: BookSkipSettings }
-  books: Record<string, BookSkipSettings>;
-
-  // Actions
-  setDefaultIntro: (seconds: number) => void;
-  setDefaultOutro: (seconds: number) => void;
-
-  getBookSettings: (bookId: string) => BookSkipSettings;
+  getBookSettings: (bookId: string) => BookSkipConfig;
   setBookIntro: (bookId: string, seconds: number) => void;
   setBookOutro: (bookId: string, seconds: number) => void;
   setBookAutoSkipIntro: (bookId: string, enabled: boolean) => void;
@@ -29,87 +16,32 @@ interface SkipSettingsState {
   toggleBookAutoSkipOutro: (bookId: string) => void;
 }
 
-export const useSkipSettings = create<SkipSettingsState>()(
-  persist(
-    (set, get) => ({
-      defaultIntroSeconds: 15,
-      defaultOutroSeconds: 10,
-      books: {},
+/**
+ * useSkipSettings — 兼容旧接口的 React Hook
+ * 所有读写委托给 ConfigManager
+ */
+export function useSkipSettings(): SkipSettingsState {
+  useSyncExternalStore(
+    useCallback((cb: () => void) => Config.subscribe(cb), []),
+    useCallback(() => ({}), []),
+  );
 
-      setDefaultIntro: (seconds) => set({ defaultIntroSeconds: seconds }),
-      setDefaultOutro: (seconds) => set({ defaultOutroSeconds: seconds }),
+  return {
+    get defaultIntroSeconds() { return Config.getApp().defaultIntroSeconds; },
+    get defaultOutroSeconds() { return Config.getApp().defaultOutroSeconds; },
 
-      getBookSettings: (bookId) => {
-        const state = get();
-        const book = state.books[bookId];
-        if (book) return book;
-        // 返回全局默认值
-        return {
-          introSeconds: state.defaultIntroSeconds,
-          outroSeconds: state.defaultOutroSeconds,
-          autoSkipIntro: false,
-          autoSkipOutro: false,
-        };
-      },
-
-      setBookIntro: (bookId, seconds) => {
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...state.books[bookId] || get().getBookSettings(bookId), introSeconds: seconds },
-          },
-        }));
-      },
-
-      setBookOutro: (bookId, seconds) => {
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...state.books[bookId] || get().getBookSettings(bookId), outroSeconds: seconds },
-          },
-        }));
-      },
-
-      setBookAutoSkipIntro: (bookId, enabled) => {
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...state.books[bookId] || get().getBookSettings(bookId), autoSkipIntro: enabled },
-          },
-        }));
-      },
-
-      setBookAutoSkipOutro: (bookId, enabled) => {
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...state.books[bookId] || get().getBookSettings(bookId), autoSkipOutro: enabled },
-          },
-        }));
-      },
-
-      toggleBookAutoSkipIntro: (bookId) => {
-        const current = get().getBookSettings(bookId);
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...current, autoSkipIntro: !current.autoSkipIntro },
-          },
-        }));
-      },
-
-      toggleBookAutoSkipOutro: (bookId) => {
-        const current = get().getBookSettings(bookId);
-        set((state) => ({
-          books: {
-            ...state.books,
-            [bookId]: { ...current, autoSkipOutro: !current.autoSkipOutro },
-          },
-        }));
-      },
-    }),
-    {
-      name: 'abs-skip-settings',
-    }
-  )
-);
+    getBookSettings: (bookId) => Config.getBook(bookId),
+    setBookIntro: (bookId, seconds) => Config.updateBook(bookId, { introSeconds: seconds }),
+    setBookOutro: (bookId, seconds) => Config.updateBook(bookId, { outroSeconds: seconds }),
+    setBookAutoSkipIntro: (bookId, enabled) => Config.updateBook(bookId, { autoSkipIntro: enabled }),
+    setBookAutoSkipOutro: (bookId, enabled) => Config.updateBook(bookId, { autoSkipOutro: enabled }),
+    toggleBookAutoSkipIntro: (bookId) => {
+      const cur = Config.getBook(bookId);
+      Config.updateBook(bookId, { autoSkipIntro: !cur.autoSkipIntro });
+    },
+    toggleBookAutoSkipOutro: (bookId) => {
+      const cur = Config.getBook(bookId);
+      Config.updateBook(bookId, { autoSkipOutro: !cur.autoSkipOutro });
+    },
+  };
+}
