@@ -7,27 +7,38 @@ import './index.css';
 
 const baseUrl = import.meta.env.BASE_URL || '/';
 
-// ====== iOS PWA Viewport ======
-// v13 策略：纯 CSS 声明式布局。
-// 只通过 CSS 变量中转 safe-area 值供其他地方读取，
-// 绝不修改任何元素的高度/样式。
+// ====== iOS PWA Viewport — 最终方案 ======
+//
+// 问题本质：
+//   window.innerHeight / visualViewport.height 在 iOS PWA 下返回的值
+//   可能不包含安全区（894px vs 物理屏幕 956px）。
+//   不管用什么 CSS 技巧（-webkit-fill-available、fixed、100vh 等），
+//   如果底层视口高度就是错的，上层布局永远缺一块。
+//
+// 解决：
+//   直接用 window.screen.height（物理屏幕像素高度）设置 html 高度。
+//   这是唯一一个在所有情况下都等于"屏幕底部 y 坐标"的值。
+//
 function setAppViewport() {
   const vv = window.visualViewport;
   const vh = vv?.height ?? window.innerHeight;
+  const screenH = window.screen.height || window.innerHeight;
 
-  // 从 CSS 变量读 safe-area（index.css 通过 --sat/--sab 中转 env()）
+  // 从 CSS 变量读 safe-area
   const cs = getComputedStyle(document.documentElement);
   const satRaw = cs.getPropertyValue('--sat').trim();
   const sabRaw = cs.getPropertyValue('--sab').trim();
   const safeTop = parseFloat(satRaw) || 0;
   const safeBottom = parseFloat(sabRaw) || 0;
 
-  // 仅写入信息性变量，不改任何 style 属性
   document.documentElement.style.setProperty('--app-height', `${vh}px`);
-  document.documentElement.style.setProperty('--app-full-height', `${vh}px`);
+  document.documentElement.style.setProperty('--app-full-height', `${screenH}px`);
   document.documentElement.style.setProperty('--vh', `${vh * 0.01}px`);
   document.documentElement.style.setProperty('--safe-top', `${safeTop}px`);
   document.documentElement.style.setProperty('--safe-bottom', `${safeBottom}px`);
+
+  // ★ 直接设为物理屏幕高度，不多不少
+  document.documentElement.style.setProperty('height', `${screenH}px`);
 }
 
 setAppViewport();
