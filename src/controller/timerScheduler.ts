@@ -149,10 +149,12 @@ function startAllTimers() {
       );
 
       // 片头跳过
-      if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
-        d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
-        audio.currentTime = cfg.introSeconds;
-        return;
+      if (cfg.autoSkipIntro && cfg.introSeconds > 0) {
+        if (ct < cfg.introSeconds) {
+          d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
+          audio.currentTime = cfg.introSeconds;
+          return;
+        }
       }
       // 片尾切章
       if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {

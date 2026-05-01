@@ -213,6 +213,16 @@ async function loadChapter(index: number): Promise<boolean> {
     requestAnimationFrame(poll);
   });
 
+  // 音频就绪后立即检查片头跳过（不等 watchdog 1.2s 延迟）
+  const itemId = usePlayerStore.getState().currentItem?.id;
+  if (itemId) {
+    const cfg = Config.getBook(itemId);
+    if (cfg.autoSkipIntro && cfg.introSeconds > 0 && audio.currentTime < cfg.introSeconds) {
+      playerLog('chapter', `片头跳过 · ${audio.currentTime.toFixed(1)}s → ${cfg.introSeconds}s`);
+      audio.currentTime = cfg.introSeconds;
+    }
+  }
+
   // 切章完成 → 通知 Scheduler 重建定时器
   restartTimers();
   return true;
