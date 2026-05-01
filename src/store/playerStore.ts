@@ -84,46 +84,63 @@ function getAudio(): HTMLAudioElement {
 function startProgressLoop() {
   const audio = getAudio();
 
-  // 统一用 timeupdate 事件处理所有逻辑（锁屏/非锁屏行为一致）
-  // iOS 锁屏后 rAF 会暂停，但 timeupdate 仍会触发
   const onTimeUpdate = () => {
     if (audio.paused) return;
     const state = usePlayerStore.getState();
     const ct = audio.currentTime;
     usePlayerStore.setState({ currentTime: ct });
 
-    // 自动跳过（锁屏后仍生效）
-    if (state.currentItem) {
-      const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
-      if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds && state.currentChapter && state.currentChapter.duration > settings.introSeconds) {
-        audio.currentTime = settings.introSeconds;
-      }
-      if (settings.autoSkipOutro && settings.outroSeconds > 0 && state.currentChapter) {
-        const chapterEnd = state.currentChapter.duration;
-        if (ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
-          const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
-          if (idx < chs.length - 1) {
-            audio.currentTime = chapterEnd;
-          }
-        }
-      }
+    if (!state.currentItem || !state.currentChapter) return;
+    const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
+    const chapterEnd = state.currentChapter.duration;
+
+    // 自动跳过片头
+    if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds && chapterEnd > settings.introSeconds) {
+      audio.currentTime = settings.introSeconds;
+      return;
     }
 
-    // 检测章节自然结束，自动切下一章（锁屏/非锁屏一致）
-    if (state.currentChapter && ct >= state.currentChapter.duration) {
+    // 自动跳过片尾 → 直接切到下一章（不是只设 currentTime）
+    if (settings.autoSkipOutro && settings.outroSeconds > 0 && ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
         usePlayerStore.getState().playNextChapter();
       } else {
         audio.pause();
-        usePlayerStore.setState({ isPlaying: false, currentTime: state.currentChapter.duration });
+        usePlayerStore.setState({ isPlaying: false, currentTime: chapterEnd });
+      }
+      return;
+    }
+
+    // 章节自然结束
+    if (ct >= chapterEnd) {
+      const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
+      if (idx < chs.length - 1) {
+        usePlayerStore.getState().playNextChapter();
+      } else {
+        audio.pause();
+        usePlayerStore.setState({ isPlaying: false, currentTime: chapterEnd });
       }
     }
   };
 
   audio.addEventListener('timeupdate', onTimeUpdate);
 
-  // 睡眠模式用 setInterval 独立处理（锁屏后会降频但仍能工作）
+  // 注册后立即检查一次（防止 timeupdate 在监听器注册前已触发）
+  onTimeUpdate();
+
+  // onended 作为章节切换的后备检测
+  audio.onended = () => {
+    const state = usePlayerStore.getState();
+    const { currentChapterIndex: idx, chapters: chs } = state;
+    if (idx < chs.length - 1) {
+      usePlayerStore.getState().playNextChapter();
+    } else {
+      usePlayerStore.setState({ isPlaying: false });
+    }
+  };
+
+  // 睡眠模式用 setInterval 独立处理
   const sleepInterval = setInterval(() => {
     const state = usePlayerStore.getState();
     if (!state.isPlaying) return;
@@ -139,9 +156,9 @@ function startProgressLoop() {
     }
   }, 1000);
 
-  // 清理函数
   (audio as any).__cleanupProgress = () => {
     audio.removeEventListener('timeupdate', onTimeUpdate);
+    audio.onended = null;
     clearInterval(sleepInterval);
     delete (audio as any).__cleanupProgress;
   };
