@@ -9,23 +9,26 @@
 
 /*
  * ====== 布局策略 ======
- * 1. html/body/#root 全部用 -webkit-fill-available 或 100% 高度链，填满可用空间（含安全区）
- * 2. --app-height / --app-full-height 由 main.tsx 动态设置
- * 3. MiniPlayer 作为 flex 子元素自然在底部（不用 fixed），可被 DebugTag 包裹
+ * 1. 通过 CSS 变量中转 env(safe-area-inset-*)，让 JS 能读取安全区数值
+ * 2. html 高度由 main.tsx 通过 JS 动态设置为 screen 可用总高度
+ * 3. body / #root 继承 100% 高度链
+ * 4. MiniPlayer 作为 flex 子元素自然落底（不用 fixed）
  */
 html {
   height: 100%;
-  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
+
+  /* ← 关键：将 env() 值存入 CSS 自定义变量，JS 即可读取 */
+  --sat: env(safe-area-inset-top);
+  --sab: env(safe-area-inset-bottom);
 }
 
 body {
   margin: 0;
   padding: 0;
   height: 100%;
-  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;

@@ -82,10 +82,10 @@ function DiagPanel() {
       const mini = document.querySelector('[data-miniplayer]') as HTMLElement | null;
 
       const s = window.screen;
-      const safeTop = getComputedStyle(document.documentElement).getPropertyValue('safe-area-inset-top').trim() ||
-        getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top').trim() || '?';
-      const safeBottomStr = getComputedStyle(document.documentElement).getPropertyValue('safe-area-inset-bottom').trim() ||
-        getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom').trim() || '?';
+      // 从 CSS 变量读取安全区值（main.tsx 已将 env() 结果写入 --safe-top / --safe-bottom）
+      const cs = getComputedStyle(document.documentElement);
+      const safeTop    = cs.getPropertyValue('--safe-top').trim() || '?';
+      const safeBottom = cs.getPropertyValue('--safe-bottom').trim() || '?';
 
       let miniRect: string = 'N/A';
       let gapBottom: string = 'N/A';
@@ -101,8 +101,8 @@ function DiagPanel() {
         winIH: `${window.innerHeight}px`,
         vvH: vv ? `${vv.height}px` : '?',
         vvOffsetT: vv ? `${vv.offsetTop}px` : '?',
-        safeT: safeTop === '' ? '~59px' : safeTop,
-        safeB: safeBottomStr === '' ? '~34px' : safeBottomStr,
+        safeT: safeTop === '0px' ? '~59px(估)' : safeTop,
+        safeB: safeBottom === '0px' ? '~34px(估)' : safeBottom,
         rootH: root ? `${root.clientHeight}px` : '?',
         mainH: main ? `${main.clientHeight}px` : '?',
         mainPT: main ? getComputedStyle(main).paddingTop : '?',
