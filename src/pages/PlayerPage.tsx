@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward,
-  Volume2, VolumeX, Moon, ChevronDown, Settings2, List,
+  Moon, ChevronDown, Settings2, List,
 } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
@@ -119,54 +119,38 @@ function SkipButtons({ bookSettings, skipSettings, itemId }: {
 /** 播放控制栏 */
 function TransportBar({
   isPlaying, playbackRate, sleepActive,
-  volume, skipFwdSec, skipBwdSec,
+  skipFwdSec, skipBwdSec,
   onTogglePlay, onSpeedClick, onSleepClick,
-  onSkipForward, onSkipBackward, onMuteToggle, onVolumeChange,
+  onSkipForward, onSkipBackward,
 }: {
   isPlaying: boolean; playbackRate: number; sleepActive: boolean;
-  volume: number; skipFwdSec: number; skipBwdSec: number;
+  skipFwdSec: number; skipBwdSec: number;
   onTogglePlay: () => void; onSpeedClick: () => void; onSleepClick: () => void;
   onSkipForward: (s: number) => void; onSkipBackward: (s: number) => void;
-  onMuteToggle: () => void; onVolumeChange: (v: number) => void;
 }) {
   return (
-    <>
-      <div className="Player-transport flex items-center justify-between px-8 mb-4">
-        <button onClick={onSpeedClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
-          {playbackRate}x
+    <div className="Player-transport flex items-center justify-between px-8 mb-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
+      <button onClick={onSpeedClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
+        {playbackRate}x
+      </button>
+      <div className="flex items-center gap-4">
+        <button onClick={() => onSkipBackward(skipBwdSec)} className="p-3 rounded-full hover:bg-white/10">
+          <SkipBack className="w-6 h-6 text-white" />
         </button>
-        <div className="flex items-center gap-4">
-          <button onClick={() => onSkipBackward(skipBwdSec)} className="p-3 rounded-full hover:bg-white/10">
-            <SkipBack className="w-6 h-6 text-white" />
-          </button>
-          <button
-            onClick={onTogglePlay}
-            className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg"
-          >
-            {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
-          </button>
-          <button onClick={() => onSkipForward(skipFwdSec)} className="p-3 rounded-full hover:bg-white/10">
-            <SkipForward className="w-6 h-6 text-white" />
-          </button>
-        </div>
-        <button onClick={onSleepClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
-          <Moon className={`w-5 h-5 ${sleepActive ? 'text-purple-400' : 'text-gray-400'}`} />
+        <button
+          onClick={onTogglePlay}
+          className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg"
+        >
+          {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
+        </button>
+        <button onClick={() => onSkipForward(skipFwdSec)} className="p-3 rounded-full hover:bg-white/10">
+          <SkipForward className="w-6 h-6 text-white" />
         </button>
       </div>
-
-      {/* 音量 */}
-      <div className="Player-volume flex items-center gap-4 px-8" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
-        <button onClick={onMuteToggle} className="p-2 rounded-full hover:bg-white/10">
-          {volume === 0 ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-gray-400" />}
-        </button>
-        <input
-          type="range" min={0} max={1} step={0.05} value={volume}
-          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-          className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-          style={{ background: `linear-gradient(to right, #8b5cf6 ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%)` }}
-        />
-      </div>
-    </>
+      <button onClick={onSleepClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
+        <Moon className={`w-5 h-5 ${sleepActive ? 'text-purple-400' : 'text-gray-400'}`} />
+      </button>
+    </div>
   );
 }
 
@@ -416,12 +400,11 @@ export default function PlayerPage() {
 
       <TransportBar
         isPlaying={isPlaying} playbackRate={playbackRate} sleepActive={!!sleepTimeRemaining}
-        volume={volume} skipFwdSec={skipForwardSeconds} skipBwdSec={skipBackwardSeconds}
+        skipFwdSec={skipForwardSeconds} skipBwdSec={skipBackwardSeconds}
         onTogglePlay={isPlaying ? pause : resume}
         onSpeedClick={() => setShowSpeedPicker(!showSpeedPicker)}
         onSleepClick={() => setShowSleepPicker(!showSleepPicker)}
         onSkipForward={skipForward} onSkipBackward={skipBackward}
-        onMuteToggle={() => setVolume(volume > 0 ? 0 : 1)} onVolumeChange={setVolume}
       />
 
       {/* 弹出面板 */}

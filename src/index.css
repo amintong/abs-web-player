@@ -68,6 +68,8 @@ input[type="range"] {
   appearance: none;
   background: transparent;
   cursor: pointer;
+  /* 给足够高度容纳 thumb，避免被裁剪 */
+  height: 20px;
 }
 
 input[type="range"]::-webkit-slider-track {
@@ -83,6 +85,7 @@ input[type="range"]::-webkit-slider-thumb {
   height: 16px;
   background: white;
   border-radius: 50%;
+  /* 垂直居中：(track高度 4px - thumb高度 16px) / 2 = -6px */
   margin-top: -6px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

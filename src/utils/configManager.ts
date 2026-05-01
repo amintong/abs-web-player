@@ -234,8 +234,16 @@ class _ConfigManager {
     this.notify();
   }
 
+  private _notifyScheduled = false;
+
+  /** 异步通知：避免在事件回调 / 渲染周期内同步触发 React 重渲染 */
   private notify(): void {
-    for (const cb of this.listeners) cb();
+    if (this._notifyScheduled) return;
+    this._notifyScheduled = true;
+    queueMicrotask(() => {
+      this._notifyScheduled = false;
+      for (const cb of this.listeners) cb();
+    });
   }
 }
 
