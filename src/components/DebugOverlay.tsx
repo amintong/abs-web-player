@@ -25,7 +25,7 @@ function colorFor(id: string): string {
   return COLORS[id.split('').reduce((a,c)=>a+c.charCodeAt(0),0) % COLORS.length];
 }
 
-/** 给普通子组件用 */
+/** 给子组件用 */
 export function DebugTag({ id, name, children }: { id: string; name: string; children: React.ReactNode }) {
   const ctx = useContext(Ctx);
   const ref = useRef<HTMLDivElement>(null);
@@ -67,36 +67,6 @@ export function DebugTag({ id, name, children }: { id: string; name: string; chi
       {children}
     </div>
   );
-}
-
-/** 给 fixed 定位组件用（如 MiniPlayer）—— 返回是否开启 + 颜色，组件自行画标签 */
-export function useDebugLabel(id: string, name: string) {
-  const ctx = useContext(Ctx);
-  const ref = useRef<HTMLElement>(null);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const c = colorFor(id);
-
-  useEffect(() => {
-    if (!ctx.on || !ref.current) return;
-    const raf = requestAnimationFrame(() => ctx.register(id, name, ref.current));
-    let ro: ResizeObserver | null = null;
-    if (ref.current) {
-      ro = new ResizeObserver(entries => {
-        for (const e of entries) {
-          const { width, height } = e.contentRect;
-          setSize({ w: Math.round(width), h: Math.round(height) });
-        }
-      });
-      ro.observe(ref.current);
-    }
-    return () => {
-      cancelAnimationFrame(raf);
-      ro?.disconnect();
-      ctx.unregister(id);
-    };
-  }, [ctx.on]);
-
-  return { on: ctx.on, color: c, size, ref };
 }
 
 /** 实时日志浮窗 */
