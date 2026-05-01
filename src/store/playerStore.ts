@@ -305,8 +305,8 @@ function setupChapterWatchdog() {
   const audio = getAudio();
   cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
 
-  const onTimeUpdate = () => {
-    if (audio.paused) return;
+  // 核心检查逻辑（不含 paused 守卫，供首次调用和 timeupdate 共用）
+  const runChecks = () => {
     const curState = usePlayerStore.getState();
     if (!curState.currentItem || !curState.currentChapter) return;
     const ct = audio.currentTime;
@@ -349,9 +349,17 @@ function setupChapterWatchdog() {
     }
   };
 
+  // timeupdate 事件监听（带 paused 守卫，暂停时不做切章）
+  const onTimeUpdate = () => {
+    if (audio.paused) return;
+    runChecks();
+  };
+
   audio.addEventListener('timeupdate', onTimeUpdate);
   wdOnTimeUpdate = onTimeUpdate; // 记录引用，供 cleanupWatchdog 使用
-  onTimeUpdate(); // 立即检查一次
+
+  // ⚡ 立即执行一次（不管是否 paused），确保片头跳过等不遗漏
+  runChecks();
 
   // onended 兜底
   audio.onended = () => {
@@ -611,14 +619,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (settled) return;
       if (audio.readyState >= 3) {
         settled = true;
-        if (chapterOffset > 0 && !audio.paused) {
+        // 无条件执行 seek（不管 audio 是否 paused）
+        if (chapterOffset > 0) {
           audio.currentTime = Math.min(chapterOffset, audio.duration || targetChapter.duration);
+          playerLog('play', `Seek 到恢复位置 · ${Math.round(audio.currentTime)}s`);
         }
         setupChapterWatchdog();
         startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
         playerLog('play', `Watchdog + Sync 已启动 · readyState=${audio.readyState}`);
       } else if (performance.now() - t0 > PLAY_TIMEOUT_MS) {
         settled = true;
+        // 超时也尝试 seek + 启动 watchdog
+        if (chapterOffset > 0 && audio.duration) {
+          audio.currentTime = Math.min(chapterOffset, audio.duration);
+        }
         playerWarn('play', `音频加载超时，仍启动 watchdog · readyState=${audio.readyState}`, { timeout: PLAY_TIMEOUT_MS + 'ms' });
         setupChapterWatchdog();
         startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
