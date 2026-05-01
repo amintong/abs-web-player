@@ -4,15 +4,17 @@ import { usePlayerStore } from '../store/playerStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
 import { Config } from '../utils/configManager';
+import { useAudioTime } from '../hooks/useAudioTime';
 
 export default function MiniPlayer() {
   const navigate = useNavigate();
   const location = useLocation();
   const {
-    isPlaying, currentItem, currentTime, duration,
+    isPlaying, currentItem,
     isMiniPlayerVisible, pause, resume, skipBackward, skipForward,
   } = usePlayerStore();
   const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
+  const { currentTime, duration } = useAudioTime();
 
   // 在全屏播放器页面不显示迷你播放器（使用 React Router location，适配子路径）
   if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;

@@ -4,15 +4,17 @@ import { usePlayerStore } from '../store/playerStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';
+import { useAudioTime } from '../hooks/useAudioTime';
 
 export default function FullPlayer() {
   const {
-    isPlaying, currentItem, currentTime, duration, volume, playbackRate,
+    isPlaying, currentItem, volume, playbackRate,
     chapters, currentChapterIndex, isFullPlayerVisible, sleepTimeRemaining,
     hideFullPlayer, pause, resume, seek, setVolume, setPlaybackRate,
     playNextChapter, playPreviousChapter, setSleepTimer, clearSleepTimer,
     skipIntro, skipOutro,
   } = usePlayerStore();
+  const { currentTime, duration } = useAudioTime();
 
   const skipSettings = useSkipSettings();
   const bookSettings = currentItem ? skipSettings.getBookSettings(currentItem.id) : null;
