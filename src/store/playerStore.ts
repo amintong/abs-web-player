@@ -305,21 +305,6 @@ function setupChapterWatchdog() {
   const audio = getAudio();
   cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
 
-  // 记录注册时的基准时间，用于过滤 iOS 后台恢复时的 currentTime 异常
-  let lastKnownGoodTime: number | null = null;
-
-  // 安全读取 currentTime：过滤掉 iOS 后台恢复导致的异常归零
-  const safeCurrentTime = (): number => {
-    const raw = audio.currentTime;
-    // 如果上次已知正常时间 > 2s 且本次突然降到 < 0.5s → iOS 重置，返回上次正常值
-    if (lastKnownGoodTime !== null && lastKnownGoodTime > 2 && raw < 0.5) {
-      playerLog('chapter', `⚠️ 检测到 currentTime 异常归零 · raw=${raw.toFixed(2)}s · 使用上次正常值=${lastKnownGoodTime.toFixed(2)}s`);
-      return lastKnownGoodTime;
-    }
-    lastKnownGoodTime = raw;
-    return raw;
-  };
-
   // 核心检查逻辑（供首次调用和 timeupdate 共用）
   const runChecks = (source: string) => {
     const curState = usePlayerStore.getState();
@@ -327,7 +312,7 @@ function setupChapterWatchdog() {
       playerLog('chapter', `[runChecks:${source}] 跳过 · 无当前项或章节`, { hasItem: !!curState.currentItem, hasChapter: !!curState.currentChapter });
       return;
     }
-    const ct = safeCurrentTime();
+    const ct = audio.currentTime; // 直接读取，不做过滤（safeCurrentTime 已移除）
     const settings = Config.getBook(curState.currentItem.id);
     const chapterEnd = curState.currentChapter.duration;
 
@@ -362,7 +347,6 @@ function setupChapterWatchdog() {
     if (introEnabled && inIntroZone && durationOk && introExtraGuard) {
       playerLog('chapter', `⚠️ Watchdog 片头跳过触发 · ${ct.toFixed(2)}s → ${settings.introSeconds}s`, { chapter: curState.currentChapterIndex + 1, chapterEnd });
       audio.currentTime = settings.introSeconds;
-      lastKnownGoodTime = settings.introSeconds;
       return;
     }
 
