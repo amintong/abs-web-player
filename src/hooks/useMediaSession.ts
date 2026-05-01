@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../store/playerStore';
-import { useAppStore } from '../store/appStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
+import { Config } from '../utils/configManager';
 
 export function useMediaSession() {
   const {
@@ -16,7 +16,7 @@ export function useMediaSession() {
     playNextChapter,
     playPreviousChapter,
   } = usePlayerStore();
-  const { skipForwardSeconds, skipBackwardSeconds } = useAppStore();
+  const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
