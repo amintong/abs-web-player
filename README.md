@@ -53,6 +53,22 @@ npm run build
 # 将 dist/ 目录上传到 GitHub Pages
 ```
 
+## 版本管理
+
+> **重要：每次 push 到 main 分支必须更新 `public/VERSION` 文件中的版本号**（格式：`X.Y.Z`），CI 会校验版本号必须递增，否则构建失败。版本号用于 Git Tag 打标和 PWA 版本检测。
+
+### 发布流程
+
+```bash
+# 1. 更新版本号
+echo "0.7.1" > public/VERSION
+
+# 2. 提交并推送
+git add public/VERSION
+git commit -m "release v0.7.1"
+git push origin main   # 自动触发 CI/CD → 构建 → 部署到 Pages
+```
+
 ### 方式二：CI/CD 自动部署（推荐）
 
 1. 推送代码到 GitHub 仓库的 `master` 分支

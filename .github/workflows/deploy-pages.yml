@@ -94,17 +94,14 @@ jobs:
       - name: Read VERSION file
         id: read-version
         run: echo "version=$(cat public/VERSION)" >> $GITHUB_OUTPUT
-      - name: Check if tag exists
-        id: check-tag
+      - name: Validate version is new
         run: |
           TAG="v$(cat public/VERSION)"
           if git fetch --tags origin "$TAG" 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::error::Version $TAG already exists. Update public/VERSION before pushing to main."
+            exit 1
           fi
       - name: Create tag
-        if: steps.check-tag.outputs.exists != 'true'
         run: |
           TAG="v$(cat public/VERSION)"
           git config user.name "github-actions"
