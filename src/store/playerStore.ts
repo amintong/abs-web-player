@@ -141,8 +141,8 @@ let cleanupFns: (() => void)[] = [];
 // 用户主动操作（pause/resume/stop）时递增代数，使过期回调失效
 let restoreGen = 0;
 
-// Watchdog 监听器引用（用于切章时精确清理，不碰 sync/sleep/visibility）
-let wdOnTimeUpdate: (() => void) | null = null;
+// Watchdog 轮询 ID（用于清理）
+let wdPollInterval: ReturnType<typeof setInterval> | null = null;
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
@@ -161,19 +161,17 @@ function cleanupAll() {
   cleanupFns = [];
   if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
   if (sleepIntervalId) { clearInterval(sleepIntervalId); sleepIntervalId = null; }
-  wdOnTimeUpdate = null;
+  if (wdPollInterval) { clearInterval(wdPollInterval); wdPollInterval = null; }
 }
 
-/** 仅清理 watchdog 的 timeupdate + onended（切章时调用，保留 sync/sleep/visibility） */
+/** 清理 watchdog 轮询 + onended */
 function cleanupWatchdog() {
-  const audio = audioEl;
-  if (audio && wdOnTimeUpdate) {
-    audio.removeEventListener('timeupdate', wdOnTimeUpdate);
-    audio.onended = null;
-    // 从 cleanupFns 中移除对应的 watchdog 清理函数（最后两个）
-    cleanupFns = cleanupFns.slice(0, -2);
+  if (wdPollInterval) {
+    clearInterval(wdPollInterval);
+    wdPollInterval = null;
   }
-  wdOnTimeUpdate = null;
+  const audio = audioEl;
+  if (audio) audio.onended = null;
 }
 
 function pushCleanup(fn: () => void) {
@@ -299,20 +297,17 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
 
 /**
  * 章节看门狗：处理片头跳过、片尾自动切章、自然结束
- * 只监听事件驱动逻辑，不写 currentTime 到 store
+ * 统一使用 setInterval 轮询驱动（前台/后台/挂起状态均使用同一套逻辑）
  */
 function setupChapterWatchdog() {
   const audio = getAudio();
-  cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
+  cleanupWatchdog(); // ← 先清理旧的 watchdog
 
-  // 核心检查逻辑（供首次调用和 timeupdate 共用）
-  const runChecks = (source: string) => {
+  // 核心检查逻辑
+  const runChecks = () => {
     const curState = usePlayerStore.getState();
-    if (!curState.currentItem || !curState.currentChapter) {
-      playerLog('chapter', `[runChecks:${source}] 跳过 · 无当前项或章节`, { hasItem: !!curState.currentItem, hasChapter: !!curState.currentChapter });
-      return;
-    }
-    const ct = audio.currentTime; // 直接读取，不做过滤（safeCurrentTime 已移除）
+    if (!curState.currentItem || !curState.currentChapter) return;
+    const ct = audio.currentTime;
     const settings = Config.getBook(curState.currentItem.id);
     const chapterEnd = curState.currentChapter.duration;
 
@@ -324,28 +319,9 @@ function setupChapterWatchdog() {
     const introExtraGuard = ct < Math.min(settings.introSeconds, 5);
     const durationOk = chapterEnd > settings.introSeconds;
 
-    playerLog('chapter', `[runChecks:${source}] 检查完成 · 无命中`, {
-      ct: ct.toFixed(2) + 's',
-      chapterEnd: chapterEnd.toFixed(2) + 's',
-      paused: audio.paused,
-      chIdx: curState.currentChapterIndex + 1,
-      // 片头条件逐项
-      intro_enabled: introEnabled,
-      intro_ct_lt_intro: inIntroZone ? `ct(${ct.toFixed(1)}s) < intro(${settings.introSeconds}s)` : `❌`,
-      intro_duration_ok: durationOk ? `chapterEnd(${chapterEnd.toFixed(1)}s) > intro(${settings.introSeconds}s)` : `❌`,
-      intro_extra_guard: introExtraGuard ? `ct(${ct.toFixed(1)}s) < ${Math.min(settings.introSeconds, 5)}s` : `❌`,
-      intro_最终结果: introEnabled && inIntroZone && durationOk && introExtraGuard ? '⚠️ 应跳过片头!' : '-',
-      // 片尾条件逐项
-      outro_enabled: outroEnabled,
-      outro_zone: inOutroZone ? `ct(${ct.toFixed(1)}s) ∈ [${(chapterEnd - settings.outroSeconds).toFixed(1)}, ${chapterEnd.toFixed(1)})` : `❌`,
-      outro_最终结果: outroEnabled && inOutroZone ? '⚠️ 应切章片尾!' : '-',
-      // 结束
-      end_hit: atEnd ? `ct(${ct.toFixed(1)}s) >= end(${chapterEnd.toFixed(1)}s)` : '-',
-    });
-
-    // 片头自动跳过（仅在章节刚开始时生效，防止中途误触发）
+    // 片头自动跳过
     if (introEnabled && inIntroZone && durationOk && introExtraGuard) {
-      playerLog('chapter', `⚠️ Watchdog 片头跳过触发 · ${ct.toFixed(2)}s → ${settings.introSeconds}s`, { chapter: curState.currentChapterIndex + 1, chapterEnd });
+      playerLog('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${settings.introSeconds}s`);
       audio.currentTime = settings.introSeconds;
       return;
     }
@@ -354,7 +330,7 @@ function setupChapterWatchdog() {
     if (outroEnabled && inOutroZone) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
-        playerLog('chapter', `片尾自动切章 · 第${idx + 1}章 → 第${idx + 2}章`);
+        playerLog('chapter', `片尾切章 · ${idx + 1} → ${idx + 2}`);
         usePlayerStore.getState().playNextChapter();
       } else {
         audio.pause();
@@ -364,11 +340,11 @@ function setupChapterWatchdog() {
       return;
     }
 
-    // 自然结束切章（含片尾右边界等号覆盖）
+    // 自然结束
     if (atEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
-        playerLog('chapter', `章节结束 · 第${idx + 1}章 → 第${idx + 2}章`);
+        playerLog('chapter', `章节结束 · ${idx + 1} → ${idx + 2}`);
         usePlayerStore.getState().playNextChapter();
       } else {
         playerLog('play', '全书播放完毕');
@@ -379,19 +355,16 @@ function setupChapterWatchdog() {
     }
   };
 
-  // timeupdate 事件监听（带 paused 守卫，暂停时不做切章）
-  const onTimeUpdate = () => {
-    if (audio.paused) return;
-    runChecks('timeupdate');
-  };
+  // 🔄 统一驱动源：setInterval 轮询（前台/后台/挂起均使用同一套逻辑）
+  // 前台 ~1000ms 触发，iOS 锁屏降频但不会完全停止
+  wdPollInterval = setInterval(() => {
+    if (!audio.paused) runChecks();
+  }, 1000);
 
-  audio.addEventListener('timeupdate', onTimeUpdate);
-  wdOnTimeUpdate = onTimeUpdate; // 记录引用，供 cleanupWatchdog 使用
+  // ⚡ 启动时立即检查一次
+  runChecks();
 
-  // ⚡ 立即执行一次（不管是否 paused），确保片头跳过等不遗漏
-  runChecks('immediate');
-
-  // onended 兜底
+  // onended 兜底（音频自然播放完毕时的最后防线）
   audio.onended = () => {
     const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
     if (idx < chs.length - 1) usePlayerStore.getState().playNextChapter();
@@ -399,7 +372,7 @@ function setupChapterWatchdog() {
   };
 
   pushCleanup(() => {
-    audio.removeEventListener('timeupdate', onTimeUpdate);
+    if (wdPollInterval) { clearInterval(wdPollInterval); wdPollInterval = null; }
     audio.onended = null;
   });
 }
@@ -511,6 +484,10 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
 
               playerLog('background', `播放已恢复 · token=${token}`, { currentTimeAfterPlay: Math.round(audio.currentTime * 100) / 100 + 's', timeChanged: Math.abs(ctAfter - currentTimeBeforePlay) > 0.5 ? `⚠️ 变化了 ${Math.round((ctAfter - currentTimeBeforePlay) * 100) / 100}s` : '无变化' });
               usePlayerStore.setState({ isPlaying: true });
+
+              // ⚠️ iOS 锁屏后 timeupdate 监听器可能被系统移除
+              // 重建 watchdog 确保片头/片尾/切章检测恢复工作
+              setupChapterWatchdog();
             }).catch((err) => {
               if (token !== restoreGen) return;
               usePlayerStore.setState({ isPlaying: false });
