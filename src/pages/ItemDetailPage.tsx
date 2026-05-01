@@ -25,8 +25,11 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
 /** 封面图区域 */
 function DetailCover({ itemId, title }: { itemId: string; title?: string }) {
   return (
-    <div className="Detail-cover relative px-6 pt-3 pb-3">
-      <div className="w-32 h-32 sm:w-40 sm:h-40 mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+    <div className="Detail-cover relative px-6 pt-5 pb-5">
+      <div
+        className="mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800"
+        style={{ width: '38vw', height: '38vw' }}
+      >
         <img src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
       </div>
     </div>
@@ -39,11 +42,11 @@ function DetailInfo({ title, author, narrator, duration, fileCount, chapterCount
   duration?: number; fileCount: number; chapterCount: number;
 }) {
   return (
-    <div className="Detail-info px-6 text-center mb-3">
-      <h1 className="text-lg font-bold text-white mb-1 line-clamp-1">{title}</h1>
+    <div className="Detail-info px-6 text-center mb-5">
+      <h1 className="text-xl font-bold text-white mb-1.5 line-clamp-2">{title}</h1>
       <p className="text-gray-400 text-sm">{author}</p>
-      {narrator && <p className="text-xs text-gray-500">朗读: {narrator}</p>}
-      <div className="flex items-center justify-center gap-3 mt-1.5 text-xs text-gray-400">
+      {narrator && <p className="text-xs text-gray-500 mt-0.5">朗读: {narrator}</p>}
+      <div className="flex items-center justify-center gap-3 mt-2 text-xs text-gray-400">
         <span>{formatDuration(duration || 0)}</span>
         <span>&middot;</span>
         <span>{fileCount} 个文件</span>
@@ -57,10 +60,10 @@ function DetailInfo({ title, author, narrator, duration, fileCount, chapterCount
 /** 播放按钮 */
 function PlayButton({ onPlay }: { onPlay: () => void }) {
   return (
-    <div className="Detail-playBtn px-6 mb-2">
+    <div className="Detail-playBtn px-6 mb-5">
       <button
         onClick={onPlay}
-        className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold rounded-2xl py-3 hover:bg-gray-100 active:scale-[0.98] transition-all"
+        className="w-full flex items-center justify-center gap-3 bg-white text-black font-semibold rounded-2xl py-4 hover:bg-gray-100 active:scale-[0.98] transition-all"
       >
         <Play className="w-5 h-5 fill-current" />开始播放
       </button>
@@ -223,15 +226,8 @@ export default function ItemDetailPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/*
-       * 上半 58%：
-       *   导航栏  56px
-       *   封面    pt-3(12) + 128 + pb-3(12) = 152px
-       *   书籍信息 ≈ 118px（含narrator行）
-       *   播放按钮 ≈ 56px
-       *   合计 ≈ 382px / 最小屏667px = 57.3% → 取58%确保不溢出
-       */}
-      <div className="flex-none overflow-hidden" style={{ height: '58%' }}>
+      {/* 上半：内容自然高度，不压缩不滚动 */}
+      <div className="flex-shrink-0">
         <DetailHeader onBack={() => navigate(-1)} />
         <DetailCover itemId={item.id} title={item.media?.metadata?.title} />
         <DetailInfo
@@ -248,16 +244,14 @@ export default function ItemDetailPage() {
         }} />
       </div>
 
-      {/* 下半 42%：章节列表独立滚动 */}
+      {/* 下半：紧接上半，占满剩余高度，章节列表在内部滚动 */}
       {chapters.length > 0 && (
-        <div className="flex-none overflow-hidden flex flex-col" style={{ height: '42%' }}>
-          <ChapterSection
-            chapters={chapters}
-            savedProgress={savedProgress}
-            activeIndex={activeIndex}
-            onSelectChapter={handleSelectChapter}
-          />
-        </div>
+        <ChapterSection
+          chapters={chapters}
+          savedProgress={savedProgress}
+          activeIndex={activeIndex}
+          onSelectChapter={handleSelectChapter}
+        />
       )}
     </div>
   );
