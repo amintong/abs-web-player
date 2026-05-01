@@ -12,9 +12,44 @@
   -webkit-touch-callout: none;
 }
 
-html, body, #root {
+/* ====== 视口锁定：防止任何内容溢出到安全区外 ======
+ * iOS PWA standalone 下普通 height/overflow 无法完全阻止溢出。
+ * 用 position:fixed + inset:0 将根元素钉死在可视区域内。
+ */
+html {
+  position: fixed;
+  width: 100%;
   height: 100%;
   height: var(--app-height, 100%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  height: var(--app-height, 100%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }

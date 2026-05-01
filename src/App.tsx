@@ -54,7 +54,17 @@ function ProtectedRoutes() {
   }
 
   return (
-    <div className="overflow-y-auto bg-black text-white" style={{ height: 'var(--app-height, 100%)', paddingTop: 'env(safe-area-inset-top)' }}>
+    <div
+      className="overflow-y-auto bg-black text-white"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingTop: 'env(safe-area-inset-top)',
+      }}
+    >
       <Routes>
         <Route path="/" element={<DebugLabel id="home" name="HomePage"><HomePage /></DebugLabel>} />
         <Route path="/library/:libraryId" element={<DebugLabel id="library" name="LibraryPage"><LibraryPage /></DebugLabel>} />
@@ -86,7 +96,7 @@ function App() {
 
   if (!hydrated) {
     return (
-      <div className="bg-black flex items-center justify-center" style={{ height: 'var(--app-height, 100dvh)' }}>
+      <div className="bg-black flex items-center justify-center" style={{ position: 'fixed', inset: 0 }}>
         <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
