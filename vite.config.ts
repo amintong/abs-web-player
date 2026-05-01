@@ -28,7 +28,7 @@ export default defineConfig({
         short_name: 'ABS Player',
         description: 'iOS Web Player for Audiobookshelf',
         theme_color: '#000000',
-        background_color: '#ffffff',
+        background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
         version: appVersion,
