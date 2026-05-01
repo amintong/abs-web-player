@@ -16,13 +16,16 @@ export default function MiniPlayer() {
   const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
   const { currentTime, duration } = useAudioTime();
 
-  // 在全屏播放器页面不显示迷你播放器
   if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="bg-black border-t border-white/10" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div
+      data-miniplayer="true"
+      className="fixed left-0 right-0 z-50 bg-black/95 border-t border-white/10"
+      style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
       <div className="h-0.5 bg-white/10">
         <div className="h-full bg-purple-500 transition-all duration-100" style={{ width: `${progress}%` }} />
       </div>

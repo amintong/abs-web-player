@@ -78,9 +78,7 @@ function ProtectedRoutes() {
       </div>
 
       {/* MiniPlayer 固定在底部 */}
-      <DebugTag id="miniplayer" name="MiniPlayer">
-        <MiniPlayer />
-      </DebugTag>
+      <MiniPlayer />
     </div>
   );
 }
