@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback } from 'react';
+import { useSyncExternalStore, useCallback, useMemo } from 'react';
 
 /**
  * ConfigManager — 统一配置管理单例
@@ -75,6 +75,7 @@ class _ConfigManager {
 
   private data!: StoredData;
   private listeners = new Set<Listener>();
+  private _version = 0;
 
   static getInstance(): _ConfigManager {
     if (!this.instance) this.instance = new _ConfigManager();
@@ -101,6 +102,7 @@ class _ConfigManager {
 
   updateApp(partial: Partial<AppConfig>): void {
     this.data.app = { ...this.data.app, ...partial };
+    this._version++;
     this.saveToStorage();
     this.notify();
   }
@@ -117,6 +119,7 @@ class _ConfigManager {
   updateBook(bookId: string, partial: Partial<BookSkipConfig>): void {
     const current = this.data.books[bookId] ?? this.getBook(bookId);
     this.data.books[bookId] = { ...current, ...partial };
+    this._version++;
     this.saveToStorage();
     this.notify();
   }
@@ -129,6 +132,7 @@ class _ConfigManager {
 
   updatePlayer(partial: Partial<PlayerConfig>): void {
     this.data.player = { ...this.data.player, ...partial };
+    this._version++;
     this.saveToStorage();
     this.notify();
   }
@@ -139,6 +143,11 @@ class _ConfigManager {
   subscribe(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** 返回版本号，用于 useSyncExternalStore 的 getSnapshot — 稳定递增，不创建新对象 */
+  getSnapshot(): number {
+    return this._version;
   }
 
   // ==================== 私有方法 ====================
@@ -212,6 +221,7 @@ class _ConfigManager {
   /** 重置所有配置为默认值 */
   resetAll(): void {
     this.data = this.getDefaults();
+    this._version++;
     this.saveToStorage();
     this.notify();
   }
@@ -219,6 +229,7 @@ class _ConfigManager {
   /** 重置某本书的配置 */
   resetBook(bookId: string): void {
     delete this.data.books[bookId];
+    this._version++;
     this.saveToStorage();
     this.notify();
   }
@@ -235,30 +246,36 @@ export const Config = _ConfigManager.getInstance();
 
 /** 使用 App 配置 */
 export function useAppConfig(): [AppConfig, (partial: Partial<AppConfig>) => void] {
-  const snap = useSyncExternalStore(
+  const version = useSyncExternalStore(
     useCallback((cb: () => void) => Config.subscribe(cb), []),
-    useCallback(() => Config.getApp(), []),
+    useCallback(() => Config.getSnapshot(), []),
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const app = useMemo(() => Config.getApp(), [version]);
   const update = useCallback((partial: Partial<AppConfig>) => Config.updateApp(partial), []);
-  return [snap, update];
+  return [app, update];
 }
 
 /** 使用某本书的配置 */
 export function useBookConfig(bookId: string): [BookSkipConfig, (partial: Partial<BookSkipConfig>) => void] {
-  const snap = useSyncExternalStore(
+  const version = useSyncExternalStore(
     useCallback((cb: () => void) => Config.subscribe(cb), []),
-    useCallback(() => Config.getBook(bookId), [bookId]),
+    useCallback(() => Config.getSnapshot(), []),
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const book = useMemo(() => Config.getBook(bookId), [version, bookId]);
   const update = useCallback((partial: Partial<BookSkipConfig>) => Config.updateBook(bookId, partial), [bookId]);
-  return [snap, update];
+  return [book, update];
 }
 
 /** 使用播放器配置 */
 export function usePlayerConfig(): [PlayerConfig, (partial: Partial<PlayerConfig>) => void] {
-  const snap = useSyncExternalStore(
+  const version = useSyncExternalStore(
     useCallback((cb: () => void) => Config.subscribe(cb), []),
-    useCallback(() => Config.getPlayer(), []),
+    useCallback(() => Config.getSnapshot(), []),
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const player = useMemo(() => Config.getPlayer(), [version]);
   const update = useCallback((partial: Partial<PlayerConfig>) => Config.updatePlayer(partial), []);
-  return [snap, update];
+  return [player, update];
 }
