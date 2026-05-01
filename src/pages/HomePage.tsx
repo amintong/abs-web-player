@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Headphones, Clock, ChevronRight, Search, Settings } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
@@ -16,38 +16,37 @@ export default function HomePage() {
   const [continueItems, setContinueItems] = useState<{ progress: ABSProgress; item: ABSMediaItem }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 最近添加 — 只在切换库时加载一次
   useEffect(() => {
-    async function loadData() {
-      if (!activeLibraryId) return;
-      setIsLoading(true);
-      try {
-        const recent = await getRecentlyAdded(activeLibraryId, 20);
-        setRecentItems(recent);
+    if (!activeLibraryId) return;
+    let cancelled = false;
+    setIsLoading(true);
+    getRecentlyAdded(activeLibraryId, 20)
+      .then(recent => { if (!cancelled) setRecentItems(recent); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeLibraryId]);
 
-        // 展示所有有播放进度的记录（不过滤已完成或隐藏）
-        const progress = (mediaProgress || []).filter(
-          (p) => p.currentTime > 0
-        );
+  // 继续收听 — 仅当 mediaProgress 变化时刷新
+  const prevProgressRef = useRef(mediaProgress);
+  useEffect(() => {
+    // 避免因引用相同内容重复触发（zustand persist 可能重建数组）
+    if (prevProgressRef.current === mediaProgress) return;
+    prevProgressRef.current = mediaProgress;
 
-        const items = await Promise.all(
-          progress.slice(0, 10).map(async (p) => {
-            try {
-              const item = await getItem(p.libraryItemId);
-              return { progress: p, item };
-            } catch {
-              return null;
-            }
-          })
-        );
-        setContinueItems(items.filter(Boolean) as { progress: ABSProgress; item: ABSMediaItem }[]);
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, [activeLibraryId, mediaProgress]);
+    if (!mediaProgress || mediaProgress.length === 0) { setContinueItems([]); return; }
+
+    const progress = mediaProgress.filter(p => p.currentTime > 0);
+    Promise.all(
+      progress.slice(0, 10).map(async (p) => {
+        try {
+          const item = await getItem(p.libraryItemId);
+          return { progress: p, item };
+        } catch { return null; }
+      })
+    ).then(items => setContinueItems(items.filter(Boolean) as { progress: ABSProgress; item: ABSMediaItem }[]));
+  }, [mediaProgress]);
 
   const handlePlayItem = (item: ABSMediaItem) => {
     if (currentItem?.id === item.id) {
