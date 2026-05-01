@@ -106,6 +106,11 @@ export function getAudio(): HTMLAudioElement {
     audioEl.setAttribute('playsinline', '');
     audioEl.style.display = 'none';
     document.body.appendChild(audioEl);
+
+    // 追踪 audio 实际播放状态（区别于 store 的 isPlaying）
+    audioEl.addEventListener('play',  () => playerLog('lifecycle', `audio play 事件 · ct=${audioEl!.currentTime.toFixed(1)}s`));
+    audioEl.addEventListener('pause', () => playerLog('lifecycle', `audio pause 事件 · ct=${audioEl!.currentTime.toFixed(1)}s`));
+    audioEl.addEventListener('seeked', () => playerLog('chapter',  `audio seeked · ct=${audioEl!.currentTime.toFixed(1)}s`));
   }
   return audioEl;
 }
@@ -225,14 +230,17 @@ async function loadChapter(index: number): Promise<boolean> {
   });
 
   // 音频就绪后立即跳过片头（不等 watchdog，锁屏下也保证执行）
-  // 无条件 seek，不判断 ct 是否 < introSeconds——锁屏下就绪时 ct 可能已经超过 intro
   const itemId = usePlayerStore.getState().currentItem?.id;
   if (itemId) {
     const cfg = Config.getBook(itemId);
+    const ct = audio.currentTime;
+    playerLog('chapter', `就绪后状态 · ct=${ct.toFixed(1)}s readyState=${audio.readyState} autoSkipIntro=${cfg.autoSkipIntro} introSec=${cfg.introSeconds}`);
     if (cfg.autoSkipIntro && cfg.introSeconds > 0) {
-      playerLog('chapter', `片头跳过 · ${audio.currentTime.toFixed(1)}s → ${cfg.introSeconds}s`);
+      playerLog('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
       audio.currentTime = cfg.introSeconds;
     }
+  } else {
+    playerLog('chapter', `就绪后无 currentItem，跳过片头检查`);
   }
 
   // 切章完成 → 通知 Scheduler 重建定时器
