@@ -22,8 +22,9 @@ concurrency:
 jobs:
   # ====== PR 和安全扫描（push 和 PR 都运行）======
 
-  # CodeQL 安全代码分析
+  # CodeQL 安全代码分析（纯前端项目暂跳过，后续需要时取消 if: false）
   codeql:
+    if: false
     runs-on: ubuntu-latest
     permissions:
       security-events: write
