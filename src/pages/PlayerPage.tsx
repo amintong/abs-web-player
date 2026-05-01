@@ -47,7 +47,7 @@ export default function PlayerPage() {
 
   if (!currentItem) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
+      <div className="h-full bg-black flex items-center justify-center text-gray-400">
         <p>没有正在播放的内容</p>
       </div>
     );

@@ -45,7 +45,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col">
       <header className="sticky top-0 z-40 bg-black border-b border-white/5">
         <div className="flex items-center gap-4 px-4 h-14">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">

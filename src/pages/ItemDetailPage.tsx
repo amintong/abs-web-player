@@ -44,7 +44,7 @@ export default function ItemDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-full flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -52,7 +52,7 @@ export default function ItemDetailPage() {
 
   if (!item) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
+      <div className="h-full flex items-center justify-center text-gray-400">
         未找到该有声书
       </div>
     );
@@ -62,7 +62,7 @@ export default function ItemDetailPage() {
   const audioFiles = item.media?.audioFiles || [];
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="flex flex-col pb-32">
       <header className="sticky top-0 z-40 glass bg-black/90 border-b border-white/5">
         <div className="flex items-center gap-4 px-4 h-14">
           <button

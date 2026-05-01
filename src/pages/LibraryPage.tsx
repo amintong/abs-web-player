@@ -37,7 +37,7 @@ export default function LibraryPage() {
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col">
       <header className="sticky top-0 z-40 glass bg-black/80 border-b border-white/5">
         <div className="flex items-center gap-4 px-4 h-14">
           <button

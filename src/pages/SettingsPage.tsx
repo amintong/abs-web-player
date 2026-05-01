@@ -154,7 +154,7 @@ export default function SettingsPage() {
   const playbackRates = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
   return (
-    <div className="min-h-screen">
+    <div className="flex flex-col">
       <header className="sticky top-0 z-40 glass bg-black/80 border-b border-white/5">
         <div className="flex items-center gap-4 px-4 h-14">
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
