@@ -61,7 +61,6 @@ function ProtectedRoutes() {
         right: 0,
         bottom: 0,
         paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
       {/* 主内容区 — flex-1 填满剩余空间 */}
