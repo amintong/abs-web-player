@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+::root {
   --safe-area-inset-top: env(safe-area-inset-top);
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
 }
@@ -12,19 +12,24 @@
   -webkit-touch-callout: none;
 }
 
-/* ====== 视口锁定：防止任何内容溢出到安全区外 ======
- * iOS PWA standalone 下用 position:fixed + inset:0 将根元素钉死在视口内。
- * 注意：不设置显式 height，让 inset:0 自然撑满整个屏幕。
- * --app-height 仅供内部子组件引用。
+/* ====== iOS PWA 全屏布局 ====== *
+ * 核心原理：
+ *   iOS PWA standalone + viewport-fit=cover 时，
+ *   position:fixed 的 bottom:0 默认停在 safe-area 上方（Home Indicator）。
+ *   必须用 calc(0px - env(safe-area-inset-bottom)) 强制延伸到屏幕最底端。
+ *
+ *   同时所有层级必须设 background:#000 防止缝隙漏出底层颜色。
  */
 html {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* 关键：bottom 用负值抵消 safe-area，让 html 延伸到屏幕物理底部 */
+  bottom: calc(0px - env(safe-area-inset-bottom));
   overflow: hidden;
   overscroll-behavior: none;
+  background: #000;
 }
 
 body {
@@ -32,9 +37,13 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(0px - env(safe-area-inset-bottom));
   overflow: hidden;
   overscroll-behavior: none;
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -42,15 +51,9 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(0px - env(safe-area-inset-bottom));
   overflow: hidden;
   overscroll-behavior: none;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   background: #000;
 }
 
