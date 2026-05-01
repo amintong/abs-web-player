@@ -8,12 +8,14 @@ interface AppState {
   libraries: ABSLibrary[];
   mediaProgress: ABSProgress[];
   activeLibraryId: string | null;
+  debugMode: boolean;
 
   setUser: (user: ABSUser | null) => void;
   setIsAuthenticated: (val: boolean) => void;
   setLibraries: (libraries: ABSLibrary[]) => void;
   setMediaProgress: (progress: ABSProgress[]) => void;
   setActiveLibrary: (libraryId: string | null) => void;
+  setDebugMode: (val: boolean) => void;
   logout: () => void;
 }
 
@@ -25,6 +27,7 @@ export const useAppStore = create<AppState>()(
       libraries: [],
       mediaProgress: [],
       activeLibraryId: null,
+      debugMode: false,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setIsAuthenticated: (val) => set({ isAuthenticated: val }),
@@ -37,6 +40,8 @@ export const useAppStore = create<AppState>()(
       setMediaProgress: (mediaProgress) => set({ mediaProgress }),
 
       setActiveLibrary: (libraryId) => set({ activeLibraryId: libraryId }),
+
+      setDebugMode: (debugMode) => set({ debugMode }),
 
       logout: () => set({
         user: null, isAuthenticated: false, libraries: [], mediaProgress: [], activeLibraryId: null,

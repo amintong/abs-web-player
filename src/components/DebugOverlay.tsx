@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { subscribeLogs, LogEntry } from '../utils/playerLogger';
+import { useAppStore } from '../store/appStore';
 
 interface CompInfo { id: string; name: string; el: HTMLElement | null; color: string }
 
@@ -186,7 +187,7 @@ function LogPanel() {
 }
 
 export default function DebugMode({ children }: { children: React.ReactNode }) {
-  const [on, setOn] = useState(false);
+  const debugMode = useAppStore((s) => s.debugMode);
   const mapRef = useRef<Map<string, CompInfo>>(new Map());
 
   const register = useCallback((id: string, name: string, el: HTMLElement | null) => {
@@ -198,21 +199,10 @@ export default function DebugMode({ children }: { children: React.ReactNode }) {
   const unregister = useCallback((id: string) => { mapRef.current.delete(id); }, []);
 
   return (
-    <Ctx.Provider value={{ on, register, unregister }}>
+    <Ctx.Provider value={{ on: debugMode, register, unregister }}>
       {children}
 
-      {/* 开关按钮 */}
-      <button
-        onClick={() => setOn(v => !v)}
-        className={`fixed z-[99999] w-11 h-11 rounded-full shadow-lg flex items-center justify-center text-lg active:scale-90 transition-colors ${
-          on ? 'bg-red-500 text-white' : 'bg-gray-800/80 text-gray-300 backdrop-blur'
-        }`}
-        style={{ right: 12, bottom: 12 }}
-      >
-        {on ? '✕' : '🐛'}
-      </button>
-
-      {on && (
+      {debugMode && (
         <>
           <DiagPanel />
           <LogPanel />

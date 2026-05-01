@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
 import { logout } from '../api/audiobookshelf';
@@ -100,7 +100,7 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, logout: appLogout } = useAppStore();
+  const { user, logout: appLogout, debugMode, setDebugMode } = useAppStore();
   const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
   const [appConfig, updateApp] = useAppConfig();
 
@@ -298,6 +298,22 @@ export default function SettingsPage() {
             </div>
             <div className={`w-12 h-7 rounded-full p-1 transition-colors ${appConfig.isDarkMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
               <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${appConfig.isDarkMode ? 'translate-x-5' : 'translate-x-0'}`} />
+            </div>
+          </button>
+        </div>
+
+        {/* 调试模式 */}
+        <div className="bg-white/5 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <h2 className="text-sm font-medium text-gray-400">调试</h2>
+          </div>
+          <button onClick={() => setDebugMode(!debugMode)} className="w-full flex items-center justify-between px-4 py-4 hover:bg-white/5 transition-colors">
+            <div className="flex items-center gap-3">
+              <Bug className="w-5 h-5 text-gray-400" />
+              <span className="text-white">调试面板</span>
+            </div>
+            <div className={`w-12 h-7 rounded-full p-1 transition-colors ${debugMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
+              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${debugMode ? 'translate-x-5' : 'translate-x-0'}`} />
             </div>
           </button>
         </div>
