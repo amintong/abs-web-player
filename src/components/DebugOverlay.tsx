@@ -98,23 +98,28 @@ function DebugLogPanel() {
 
   return (
     <div
-      className="fixed z-[99998] left-2 bottom-2 w-[min(92vw,480px)] max-h-[40vh] rounded-lg overflow-hidden shadow-xl"
-      style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)' }}
+      className="fixed z-[99998] left-2 top-12 w-[min(92vw,480px)] max-h-[35vh] rounded-lg overflow-hidden"
+      style={{ background: 'transparent', border: 'none' }}
     >
-      <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-mono font-bold border-b border-white/10" style={{ color: '#9ca3af' }}>
+      <div className="flex items-center justify-between px-2 py-1 text-[10px] font-mono font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>
         <span>LOGS ({logs.length})</span>
       </div>
-      <div className="overflow-y-auto p-2 space-y-0.5" style={{ maxHeight: 'calc(40vh - 32px)' }}>
+      <div className="overflow-y-auto space-y-0" style={{ maxHeight: 'calc(35vh - 24px)' }}>
         {logs.length === 0 && (
-          <div className="text-[10px] font-mono" style={{ color: '#6b7280' }}>waiting...</div>
+          <div className="text-[10px] font-mono px-2" style={{ color: 'rgba(255,255,255,0.25)' }}>waiting...</div>
         )}
         {logs.map(e => (
           <pre
             key={e.id}
-            className="text-[10px] font-mono leading-tight whitespace-pre-wrap break-all m-0 p-0"
+            className="text-[10px] font-mono leading-tight whitespace-pre-wrap break-all m-0 p-1"
             style={{
-              color: e.level === 'warn' ? '#fbbf24' : e.level === 'error' ? '#f87171' : '#d1d5db',
+              color: e.level === 'warn'
+                ? 'rgba(251,191,36,0.85)'
+                : e.level === 'error'
+                  ? 'rgba(248,113,113,0.85)'
+                  : 'rgba(255,255,255,0.5)',
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              textShadow: '0 1px 3px rgba(0,0,0,0.8)',
             }}
           >
             {formatEntry(e)}
