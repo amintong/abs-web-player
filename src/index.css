@@ -9,14 +9,13 @@
 
 /*
  * ====== 布局策略 ======
- * 1. html/body/#root 全部 100% 高度链，background:#000 填满
- * 2. --app-height 由 main.tsx 通过 visualViewport 动态设置
- * 3. safe-area 通过 padding 处理，不用负值 bottom
- * 4. MiniPlayer fixed 底部对齐，自带 safe-area-bottom padding
+ * 1. html/body/#root 全部用 -webkit-fill-available 或 100% 高度链，填满可用空间（含安全区）
+ * 2. --app-height / --app-full-height 由 main.tsx 动态设置
+ * 3. MiniPlayer 作为 flex 子元素自然在底部（不用 fixed），可被 DebugTag 包裹
  */
 html {
   height: 100%;
-  height: var(--app-height, 100%);
+  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
@@ -26,6 +25,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;

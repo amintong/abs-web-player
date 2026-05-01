@@ -94,16 +94,7 @@ export default function MiniPlayer() {
   return (
     <div
       data-miniplayer="true"
-      /*
-       * 定位策略：
-       * - fixed → 脱离文档流，始终钉在视口底部
-       * - left/right: 0 → 撑满宽度
-       * - bottom: 0 → 贴视口底部（物理屏幕底）
-       * - 不设 paddingBottom → 安全区域由内部元素处理
-       *   （见 MiniPlayer-body 的 pb）
-       */
-      className="MiniPlayer fixed left-0 right-0 z-50 bg-black/95 border-t border-white/10"
-      style={{ bottom: 0 }}
+      className="MiniPlayer left-0 right-0 z-50 bg-black/95 border-t border-white/10"
     >
       <ProgressBar percent={progress} />
 
