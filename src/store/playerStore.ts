@@ -257,8 +257,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentChapter: null,
   currentTime: 0,
   duration: 0,
-  volume: 1,
-  playbackRate: 1,
+  volume: useAppStore.getState().volume || 1,
+  playbackRate: useAppStore.getState().playbackRate || 1,
   chapters: [],
   currentChapterIndex: 0,
   sleepTimer: null,
@@ -384,9 +384,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (vol: number) => {
     const volClamped = Math.max(0, Math.min(1, vol));
     getAudio().volume = volClamped;
+    useAppStore.getState().setVolume(volClamped);
     set({ volume: volClamped });
   },
-  setPlaybackRate: (rate: number) => { getAudio().playbackRate = rate; set({ playbackRate: rate }); },
+  setPlaybackRate: (rate: number) => {
+    getAudio().playbackRate = rate;
+    useAppStore.getState().setPlaybackRate(rate);
+    set({ playbackRate: rate });
+  },
   skipForward: (seconds = 30) => { const a = getAudio(); a.currentTime = Math.min(a.currentTime + seconds, a.duration); },
   skipBackward: (seconds = 10) => { const a = getAudio(); a.currentTime = Math.max(a.currentTime - seconds, 0); },
 

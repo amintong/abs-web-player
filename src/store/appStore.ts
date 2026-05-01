@@ -11,6 +11,8 @@ interface AppState {
   isDarkMode: boolean;
   skipForwardSeconds: number;
   skipBackwardSeconds: number;
+  playbackRate: number;
+  volume: number;
 
   setUser: (user: ABSUser | null) => void;
   setIsAuthenticated: (val: boolean) => void;
@@ -20,6 +22,8 @@ interface AppState {
   toggleDarkMode: () => void;
   setSkipForwardSeconds: (seconds: number) => void;
   setSkipBackwardSeconds: (seconds: number) => void;
+  setPlaybackRate: (rate: number) => void;
+  setVolume: (vol: number) => void;
   logout: () => void;
 }
 
@@ -34,6 +38,8 @@ export const useAppStore = create<AppState>()(
       isDarkMode: true,
       skipForwardSeconds: 30,
       skipBackwardSeconds: 10,
+      playbackRate: 1,
+      volume: 1,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
       setIsAuthenticated: (val) => set({ isAuthenticated: val }),
@@ -51,6 +57,8 @@ export const useAppStore = create<AppState>()(
 
       setSkipForwardSeconds: (seconds) => set({ skipForwardSeconds: seconds }),
       setSkipBackwardSeconds: (seconds) => set({ skipBackwardSeconds: seconds }),
+      setPlaybackRate: (rate) => set({ playbackRate: rate }),
+      setVolume: (vol) => set({ volume: vol }),
 
       logout: () => set({
         user: null, isAuthenticated: false, libraries: [], mediaProgress: [], activeLibraryId: null,
@@ -63,6 +71,8 @@ export const useAppStore = create<AppState>()(
         isDarkMode: state.isDarkMode,
         skipForwardSeconds: state.skipForwardSeconds,
         skipBackwardSeconds: state.skipBackwardSeconds,
+        playbackRate: state.playbackRate,
+        volume: state.volume,
         activeLibraryId: state.activeLibraryId,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
