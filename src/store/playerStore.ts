@@ -135,6 +135,11 @@ let syncInterval: ReturnType<typeof setInterval> | null = null;
 let sleepIntervalId: ReturnType<typeof setInterval> | null = null;
 let cleanupFns: (() => void)[] = [];
 
+// 恢复令牌：防止锁屏恢复的异步 play() 覆盖用户操作
+// 每次 visibilitychange 尝试自动恢复时记录当前代数
+// 用户主动操作（pause/resume/stop）时递增代数，使过期回调失效
+let restoreGen = 0;
+
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
     audioEl = new Audio();
@@ -392,18 +397,26 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
         const wasPlayingBeforeHide = session?.isPlaying === true;
 
         if (wasPlayingBeforeHide && audio.paused) {
-          // 之前在播放但被系统暂停了 → 尝试自动恢复
-          playerLog('background', `页面可见 → 尝试恢复播放（audio被系统暂停）`);
+          // 之前在播放但被系统暂停了 → 尝试自动恢复（带令牌校验防竞态）
+          const token = ++restoreGen;
+          playerLog('background', `页面可见 → 尝试恢复播放（audio被系统暂停）· token=${token}`);
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise.then(() => {
+              // 校验令牌：如果用户在此期间操作了播放控制，token 会不匹配，跳过
+              if (token !== restoreGen) {
+                playerLog('background', `恢复播放回调已过期 · token=${token} ≠ current=${restoreGen}，忽略`);
+                return;
+              }
               usePlayerStore.setState({ isPlaying: true });
-              playerLog('background', `页面可见 → 播放已恢复`);
+              playerLog('background', `页面可见 → 播放已恢复 · token=${token}`);
             }).catch((err) => {
+              if (token !== restoreGen) return;
               usePlayerStore.setState({ isPlaying: false });
               playerWarn('background', `恢复播放失败`, { error: (err as Error).message || 'unknown' });
             });
           } else {
+            if (token !== restoreGen) return;
             usePlayerStore.setState({ isPlaying: true });
           }
         } else {
@@ -534,17 +547,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   pause: () => {
+    restoreGen++; // 失效待处理的锁屏恢复回调
     getAudio().pause();
     playerLog('play', '暂停');
     set({ isPlaying: false });
   },
 
   resume: () => {
+    restoreGen++; // 失效待处理的锁屏恢复回调
     getAudio().play().then(() => { set({ isPlaying: true }); }).catch(() => {});
     playerLog('play', '恢复播放');
   },
 
   stop: () => {
+    restoreGen++; // 失效待处理的锁屏恢复回调
     const audio = getAudio();
     audio.pause(); audio.src = '';
     cleanupAll();
