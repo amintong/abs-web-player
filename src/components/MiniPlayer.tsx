@@ -5,6 +5,7 @@ import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
 import { Config } from '../utils/configManager';
 import { useAudioTime } from '../hooks/useAudioTime';
+import { useDebugLabel } from './DebugOverlay';
 
 export default function MiniPlayer() {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ export default function MiniPlayer() {
   const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
   const { currentTime, duration } = useAudioTime();
 
+  // 调试标签
+  const dbg = useDebugLabel('miniplayer', 'MiniPlayer');
+
   // 在全屏播放器页面不显示迷你播放器（使用 React Router location，适配子路径）
   if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;
 
@@ -23,9 +27,20 @@ export default function MiniPlayer() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 border-t border-white/10"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      ref={dbg.ref as React.RefObject<HTMLDivElement>}
+      className="fixed left-0 right-0 z-50 bg-black border-t border-white/10"
+      style={{ bottom: 0, paddingBottom: 'env(safe-area-inset-bottom)', outline: dbg.on ? `2px solid ${dbg.color}` : 'none' }}
     >
+      {/* 调试标签 */}
+      {dbg.on && (
+        <span
+          className="absolute z-[99999] text-[11px] font-mono font-bold px-1.5 py-0.5 rounded pointer-events-none select-none leading-none whitespace-nowrap"
+          style={{ background: dbg.color, color: '#000', top: 0, left: 4 }}
+        >
+          MiniPlayer {dbg.size.w > 0 && dbg.size.h > 0 && <span className="opacity-70">{dbg.size.w}×{dbg.size.h}</span>}
+        </span>
+      )}
+
       <div className="h-0.5 bg-white/10">
         <div className="h-full bg-purple-500 transition-all duration-100" style={{ width: `${progress}%` }} />
       </div>
