@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { logout } from '../api/audiobookshelf';
 import { checkForUpdates, applyUpdate } from '../sw';
+import { AudioCache } from '../utils/audioCache';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -18,6 +19,9 @@ export default function SettingsPage() {
   const [editSkipForward, setEditSkipForward] = useState(String(skipForwardSeconds));
   const [editSkipBackward, setEditSkipBackward] = useState(String(skipBackwardSeconds));
   const [updateStatus, setUpdateStatus] = useState('');
+  const [cacheInfo, setCacheInfo] = useState(() => AudioCache.getInstance().getCacheInfo());
+
+  const refreshCacheInfo = () => setCacheInfo(AudioCache.getInstance().getCacheInfo());
 
   const handleCheckUpdate = async () => {
     setUpdateStatus('检查中...');
@@ -220,6 +224,38 @@ export default function SettingsPage() {
               <RefreshCw className={`w-4 h-4 ${updateStatus === '检查中...' ? 'animate-spin' : ''}`} />
               {updateStatus || '检查更新'}
             </button>
+          </div>
+        </div>
+
+        {/* 缓存管理 */}
+        <div className="bg-white/5 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-gray-400" />
+              <h2 className="text-sm font-medium text-gray-400">缓存管理</h2>
+            </div>
+          </div>
+          <div className="px-4 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-white text-sm">音频缓存</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {cacheInfo.entries > 0
+                    ? `${cacheInfo.entries} 个章节，约 ${cacheInfo.totalMB} MB`
+                    : '当前无缓存'}
+                </p>
+              </div>
+              <button onClick={() => {
+                AudioCache.getInstance().clear();
+                refreshCacheInfo();
+              }} disabled={cacheInfo.entries === 0}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium
+                  hover:bg-red-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="w-4 h-4" />清除缓存
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">缓存由 LRU 自动管理（上限 300MB），通常无需手动清理。如遇到章节切换卡顿可尝试。</p>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { getAudioUrl, getProgress, syncProgress, syncProgressNow } from '../api/
 import { useSkipSettings } from './skipSettingsStore';
 import { useAppStore } from './appStore';
 import { ABSProgress } from '../types';
+import { AudioCache } from '../utils/audioCache';
 
 export interface PlayerChapter {
   id: number; title: string; start: number; end: number;
@@ -51,23 +52,6 @@ interface PlayerState {
 
 let audioEl: HTMLAudioElement | null = null;
 let syncInterval: ReturnType<typeof setInterval> | null = null;
-const prefetchedUrls = new Set<string>();
-
-/** 预取音频数据到浏览器 HTTP 缓存，减少变速播放时的卡顿 */
-function prefetchAudio(url: string) {
-  if (prefetchedUrls.has(url)) return;
-  prefetchedUrls.add(url);
-  // 请求前 50MB（约60分钟 64kbps），触发浏览器缓存
-  fetch(url, { headers: { Range: 'bytes=0-52428800' } }).catch(() => {});
-  // 同时用 link preload 提示浏览器优先加载
-  try {
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'audio';
-    link.href = url;
-    document.head.appendChild(link);
-  } catch {}
-}
 
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
@@ -202,19 +186,23 @@ function updateLocalProgress(libraryItemId: string, mediaItemId: string, current
   }
 }
 
-export function loadChapter(index: number) {
+export async function loadChapter(index: number) {
   const state = usePlayerStore.getState();
   const chapter = state.chapters[index];
   if (!chapter || !state.currentItem) return false;
   const audio = getAudio();
   if ((audio as any).__cleanupProgress) (audio as any).__cleanupProgress();
   const rate = state.playbackRate;
-  audio.src = getAudioUrl(state.currentItem.id, chapter.ino);
-  prefetchAudio(audio.src);
-  // 预取下一章节
-  if (index < state.chapters.length - 1) {
-    prefetchAudio(getAudioUrl(state.currentItem.id, state.chapters[index + 1].ino));
-  }
+
+  const url = getAudioUrl(state.currentItem.id, chapter.ino);
+  // 从缓存获取 blob URL，播放器只从缓存播放
+  const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
+  audio.src = cachedUrl;
+
+  // 预取后续 3 个章节
+  const chapterUrls = state.chapters.map(ch => getAudioUrl(state.currentItem!.id, ch.ino));
+  AudioCache.getInstance().prefetchAhead(chapterUrls, index, 3);
+
   // 设置 src 会重置 playbackRate，立即恢复
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
@@ -319,12 +307,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       libraryItemId, mediaItemId,
     });
 
-    audio.src = getAudioUrl(item.id, targetChapter.ino);
-    prefetchAudio(audio.src);
-    // 预取下一章节
-    if (targetChapterIndex < chapters.length - 1) {
-      prefetchAudio(getAudioUrl(item.id, chapters[targetChapterIndex + 1].ino));
-    }
+    const targetUrl = getAudioUrl(item.id, targetChapter.ino);
+    // 从缓存获取 blob URL，播放器只从缓存播放
+    const cachedUrl = await AudioCache.getInstance().getCached(targetUrl).catch(() => targetUrl);
+    audio.src = cachedUrl;
+
+    // 预取后续 3 个章节
+    const chapterUrls = chapters.map(ch => getAudioUrl(item.id, ch.ino));
+    AudioCache.getInstance().prefetchAhead(chapterUrls, targetChapterIndex, 3);
+
     audio.volume = get().volume;
     audio.playbackRate = get().playbackRate;
 
@@ -395,21 +386,21 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   skipForward: (seconds = 30) => { const a = getAudio(); a.currentTime = Math.min(a.currentTime + seconds, a.duration); },
   skipBackward: (seconds = 10) => { const a = getAudio(); a.currentTime = Math.max(a.currentTime - seconds, 0); },
 
-  playNextChapter: () => {
+  playNextChapter: async () => {
     const { currentChapterIndex: idx, chapters } = get();
     if (idx >= chapters.length - 1) return;
     const nextIdx = idx + 1;
-    loadChapter(nextIdx);
+    await loadChapter(nextIdx);
     set({ currentChapterIndex: nextIdx, currentChapter: chapters[nextIdx], duration: chapters[nextIdx].duration, currentTime: 0, isPlaying: true });
   },
 
-  playPreviousChapter: () => {
+  playPreviousChapter: async () => {
     const { currentChapterIndex: idx, chapters, currentTime } = get();
     if (currentTime > 3) {
-      loadChapter(idx); set({ currentTime: 0 });
+      await loadChapter(idx); set({ currentTime: 0 });
     } else if (idx > 0) {
       const prevIdx = idx - 1;
-      loadChapter(prevIdx);
+      await loadChapter(prevIdx);
       set({ currentChapterIndex: prevIdx, currentChapter: chapters[prevIdx], duration: chapters[prevIdx].duration, currentTime: 0, isPlaying: true });
     }
   },

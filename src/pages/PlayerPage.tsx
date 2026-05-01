@@ -230,9 +230,9 @@ export default function PlayerPage() {
       <SlideUpPanel visible={showChapterPicker} onClose={() => setShowChapterPicker(false)} title="选择章节">
         <div className="overflow-y-auto max-h-[40vh] -mx-4 px-4">
           {chapters.map((ch, idx) => (
-            <button key={ch.id} onClick={() => {
+            <button key={ch.id} onClick={async () => {
               if (idx !== currentChapterIndex) {
-                loadChapter(idx);
+                await loadChapter(idx);
                 usePlayerStore.setState({ currentChapterIndex: idx, currentChapter: ch, duration: ch.duration, currentTime: 0, isPlaying: true });
               }
               setShowChapterPicker(false);

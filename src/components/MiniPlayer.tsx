@@ -22,7 +22,7 @@ export default function MiniPlayer() {
   return (
     <div
       className="fixed bottom-0 left-0 right-0 z-50 bg-black/95 border-t border-white/10"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: '0px' }}
     >
       <div className="h-0.5 bg-white/10">
         <div className="h-full bg-purple-500 transition-all duration-100" style={{ width: `${progress}%` }} />
