@@ -15,6 +15,7 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 
 import MiniPlayer from './components/MiniPlayer';
+import DebugOverlay from './components/DebugOverlay';
 
 function ProtectedRoutes() {
   const { isAuthenticated, setLibraries, setMediaProgress } = useAppStore();
@@ -66,6 +67,7 @@ function ProtectedRoutes() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <MiniPlayer />
+      <DebugOverlay />
     </div>
   );
 }
