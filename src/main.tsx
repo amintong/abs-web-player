@@ -9,20 +9,18 @@ const baseUrl = import.meta.env.BASE_URL || '/';
 
 // ====== iOS PWA Viewport 修复 ======
 // iOS PWA standalone 模式下 100vh/100dvh 不可靠（包含被遮挡的安全区域）。
-// 使用 window.innerWidth/Height 动态设置 CSS 变量，确保高度精确匹配可见区域。
+// 使用 visualViewport.height（优先）或 window.innerHeight 动态设置 CSS 变量。
 function setAppViewport() {
-  const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--app-height', `${window.innerHeight}px`);
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
+  // visualViewport 更精确，能正确排除安全区域
+  const h = window.visualViewport?.height ?? window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', `${h}px`);
+  document.documentElement.style.setProperty('--vh', `${h * 0.01}px`);
 }
 setAppViewport();
 window.addEventListener('resize', setAppViewport);
-// iOS Safari visual viewport 变化时也更新（虚拟键盘弹出/收起、方向变化）
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', setAppViewport);
 }
-
-registerSW();
 
 registerSW();
 

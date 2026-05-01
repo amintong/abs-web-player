@@ -166,8 +166,6 @@ export default function HomePage() {
           </div>
         )}
       </section>
-
-      <div className="h-20" />
     </div>
   );
 }
