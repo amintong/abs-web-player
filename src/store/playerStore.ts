@@ -305,23 +305,43 @@ function setupChapterWatchdog() {
   const audio = getAudio();
   cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
 
-  // 核心检查逻辑（不含 paused 守卫，供首次调用和 timeupdate 共用）
+  // 记录注册时的基准时间，用于过滤 iOS 后台恢复时的 currentTime 异常
+  const registeredAt = Date.now();
+  let lastKnownGoodTime: number | null = null;
+
+  // 安全读取 currentTime：过滤掉 iOS 后台恢复导致的异常归零
+  const safeCurrentTime = (): number => {
+    const raw = audio.currentTime;
+    // 如果上次已知正常时间 > 2s 且本次突然降到 < 0.5s → iOS 重置，返回上次正常值
+    if (lastKnownGoodTime !== null && lastKnownGoodTime > 2 && raw < 0.5) {
+      playerLog('chapter', `⚠️ 检测到 currentTime 异常归零 · raw=${raw.toFixed(2)}s · 使用上次正常值=${lastKnownGoodTime.toFixed(2)}s`);
+      return lastKnownGoodTime;
+    }
+    lastKnownGoodTime = raw;
+    return raw;
+  };
+
+  // 核心检查逻辑（供首次调用和 timeupdate 共用）
   const runChecks = () => {
     const curState = usePlayerStore.getState();
     if (!curState.currentItem || !curState.currentChapter) return;
-    const ct = audio.currentTime;
+    const ct = safeCurrentTime();
     const settings = Config.getBook(curState.currentItem.id);
     const chapterEnd = curState.currentChapter.duration;
 
-    // 片头自动跳过
-    if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds && chapterEnd > settings.introSeconds) {
+    // 片头自动跳过（仅在章节刚开始时生效，防止中途误触发）
+    if (settings.autoSkipIntro && settings.introSeconds > 0 
+        && ct < settings.introSeconds && chapterEnd > settings.introSeconds
+        && ct < Math.min(settings.introSeconds, 5)) { // 额外守卫：ct 必须在开头几秒内
       playerLog('chapter', `⚠️ Watchdog 片头跳过触发 · ${ct.toFixed(2)}s → ${settings.introSeconds}s`, { chapter: curState.currentChapterIndex + 1, chapterEnd });
       audio.currentTime = settings.introSeconds;
+      lastKnownGoodTime = settings.introSeconds;
       return;
     }
 
     // 片尾自动切章
-    if (settings.autoSkipOutro && settings.outroSeconds > 0 && ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
+    if (settings.autoSkipOutro && settings.outroSeconds > 0 
+        && ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
         playerLog('chapter', `片尾自动切章 · 第${idx + 1}章 → 第${idx + 2}章`);
@@ -334,7 +354,7 @@ function setupChapterWatchdog() {
       return;
     }
 
-    // 自然结束切章
+    // 自然结束切章（含片尾右边界等号覆盖）
     if (ct >= chapterEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
@@ -467,7 +487,19 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
                 return;
               }
               const ctAfter = audio.currentTime;
-              playerLog('background', `播放已恢复 · token=${token}`, { currentTimeAfterPlay: Math.round(ctAfter * 100) / 100 + 's', timeChanged: Math.abs(ctAfter - currentTimeBeforePlay) > 0.5 ? `⚠️ 变化了 ${Math.round((ctAfter - currentTimeBeforePlay) * 100) / 100}s` : '无变化' });
+
+              // ⚡ iOS 后台返回时 audio.play() 可能将 currentTime 重置为 0
+              // 检测此情况并用 session 中保存的位置恢复
+              if (session && ctAfter < 1 && session.currentTime > 2) {
+                const targetTime = Math.min(session.currentTime, audio.duration || session.currentTime);
+                audio.currentTime = targetTime;
+                playerLog('background', `⚠️ iOS currentTime 重置修正 · ${Math.round(ctAfter * 100) / 100}s → ${Math.round(targetTime * 100) / 100}s (session)`, {
+                  sessionTime: Math.round(session.currentTime * 100) / 100 + 's',
+                  duration: audio.duration ? Math.round(audio.duration * 100) / 100 + 's' : 'N/A',
+                });
+              }
+
+              playerLog('background', `播放已恢复 · token=${token}`, { currentTimeAfterPlay: Math.round(audio.currentTime * 100) / 100 + 's', timeChanged: Math.abs(ctAfter - currentTimeBeforePlay) > 0.5 ? `⚠️ 变化了 ${Math.round((ctAfter - currentTimeBeforePlay) * 100) / 100}s` : '无变化' });
               usePlayerStore.setState({ isPlaying: true });
             }).catch((err) => {
               if (token !== restoreGen) return;
