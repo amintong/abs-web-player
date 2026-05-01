@@ -65,7 +65,6 @@ export default function HomePage() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
               <Headphones className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-white">Audiobookshelf</span>
           </div>
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/search')} className="p-2 rounded-full hover:bg-white/10 transition-colors">

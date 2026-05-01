@@ -2,42 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-::root {
-  --safe-area-inset-top: env(safe-area-inset-top);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom);
-}
-
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
 }
 
-/* ====== iOS PWA 全屏布局 ====== *
- * 核心原理：
- *   iOS PWA standalone + viewport-fit=cover 时，
- *   position:fixed 的 bottom:0 默认停在 safe-area 上方（Home Indicator）。
- *   必须用 calc(0px - env(safe-area-inset-bottom)) 强制延伸到屏幕最底端。
- *
- *   同时所有层级必须设 background:#000 防止缝隙漏出底层颜色。
+/*
+ * ====== 布局策略 ======
+ * 1. html/body/#root 全部 100% 高度链，background:#000 填满
+ * 2. --app-height 由 main.tsx 通过 visualViewport 动态设置
+ * 3. safe-area 通过 padding 处理，不用负值 bottom
+ * 4. MiniPlayer fixed 底部对齐，自带 safe-area-bottom padding
  */
 html {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  /* 关键：bottom 用负值抵消 safe-area，让 html 延伸到屏幕物理底部 */
-  bottom: calc(0px - env(safe-area-inset-bottom));
+  height: 100%;
+  height: var(--app-height, 100%);
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
 }
 
 body {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: calc(0px - env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 0;
+  height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
@@ -47,11 +35,7 @@ body {
 }
 
 #root {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: calc(0px - env(safe-area-inset-bottom));
+  height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;

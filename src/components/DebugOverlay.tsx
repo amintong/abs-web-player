@@ -50,12 +50,27 @@ export function DebugTag({ id, name, children }: { id: string; name: string; chi
   if (!ctx.on) return <>{children}</>;
 
   return (
-    <div ref={ref} style={{ outline: `2px solid ${colorFor(id)}`, outlineOffset: -1 }} data-did={id}>
+    <div
+      ref={ref}
+      className="relative"
+      style={{
+        border: `2px solid ${colorFor(id)}`,
+        minHeight: 4,
+        minWidth: 4,
+      }}
+      data-did={id}
+    >
+      {/* 标签 — absolute 相对于上面的 relative 定位 */}
       <span
-        className="absolute -top-4 left-0 z-[99999] text-[9px] font-mono font-bold px-1 py-px rounded pointer-events-none select-none leading-none"
-        style={{ background: colorFor(id), color: '#000', whiteSpace: 'nowrap' }}
+        className="absolute z-[99999] text-[11px] font-mono font-bold px-1.5 py-0.5 rounded pointer-events-none select-none leading-none whitespace-nowrap"
+        style={{
+          background: colorFor(id),
+          color: '#000',
+          top: -20,
+          left: 0,
+        }}
       >
-        {name} {size.w > 0 && <span className="opacity-60">{size.w}×{size.h}</span>}
+        {name} {size.w > 0 && size.h > 0 && <span className="opacity-70">{size.w}×{size.h}</span>}
       </span>
       {children}
     </div>
@@ -71,7 +86,6 @@ function DebugLogPanel() {
     return subscribeLogs((all) => setLogs(all.slice(-30)));
   }, []);
 
-  // 自动滚到底
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [logs.length > 0 ? logs[logs.length - 1].id : 0]);
@@ -87,23 +101,19 @@ function DebugLogPanel() {
       className="fixed z-[99998] left-2 bottom-2 w-[min(92vw,480px)] max-h-[40vh] rounded-lg overflow-hidden shadow-xl"
       style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)' }}
     >
-      {/* 标题栏 */}
       <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-mono font-bold border-b border-white/10" style={{ color: '#9ca3af' }}>
-        <span>📜 PLAYER LOGS ({logs.length})</span>
+        <span>LOGS ({logs.length})</span>
       </div>
-      {/* 日志列表 */}
       <div className="overflow-y-auto p-2 space-y-0.5" style={{ maxHeight: 'calc(40vh - 32px)' }}>
         {logs.length === 0 && (
-          <div className="text-[10px] font-mono" style={{ color: '#6b7280' }}>等待日志...</div>
+          <div className="text-[10px] font-mono" style={{ color: '#6b7280' }}>waiting...</div>
         )}
         {logs.map(e => (
           <pre
             key={e.id}
-            className="text-[10px] font-mono leading-tight whitespace-pre-wrap break-all m-0"
+            className="text-[10px] font-mono leading-tight whitespace-pre-wrap break-all m-0 p-0"
             style={{
               color: e.level === 'warn' ? '#fbbf24' : e.level === 'error' ? '#f87171' : '#d1d5db',
-              padding: '1px 0',
-              margin: 0,
               fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
             }}
           >

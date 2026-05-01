@@ -53,25 +53,31 @@ function ProtectedRoutes() {
 
   return (
     <div
-      className="overflow-y-auto bg-black text-white"
+      className="flex flex-col"
       style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        bottom: 'calc(0px - env(safe-area-inset-bottom))',
+        bottom: 0,
         paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      <Routes>
-        <Route path="/" element={<DebugTag id="home" name="HomePage"><HomePage /></DebugTag>} />
-        <Route path="/library/:libraryId" element={<DebugTag id="library" name="LibraryPage"><LibraryPage /></DebugTag>} />
-        <Route path="/item/:itemId" element={<DebugTag id="detail" name="ItemDetailPage"><ItemDetailPage /></DebugTag>} />
-        <Route path="/player" element={<DebugTag id="player" name="PlayerPage"><PlayerPage /></DebugTag>} />
-        <Route path="/search" element={<DebugTag id="search" name="SearchPage"><SearchPage /></DebugTag>} />
-        <Route path="/settings" element={<DebugTag id="settings" name="SettingsPage"><SettingsPage /></DebugTag>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* 主内容区 — flex-1 填满剩余空间 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <Routes>
+          <Route path="/" element={<DebugTag id="home" name="HomePage"><HomePage /></DebugTag>} />
+          <Route path="/library/:libraryId" element={<DebugTag id="library" name="LibraryPage"><LibraryPage /></DebugTag>} />
+          <Route path="/item/:itemId" element={<DebugTag id="detail" name="ItemDetailPage"><ItemDetailPage /></DebugTag>} />
+          <Route path="/player" element={<DebugTag id="player" name="PlayerPage"><PlayerPage /></DebugTag>} />
+          <Route path="/search" element={<DebugTag id="search" name="SearchPage"><SearchPage /></DebugTag>} />
+          <Route path="/settings" element={<DebugTag id="settings" name="SettingsPage"><SettingsPage /></DebugTag>} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+
+      {/* MiniPlayer 固定在底部 */}
       <DebugTag id="miniplayer" name="MiniPlayer">
         <MiniPlayer />
       </DebugTag>
