@@ -54,7 +54,7 @@ function ProtectedRoutes() {
   }
 
   return (
-    <div className="overflow-y-auto bg-black text-white" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: '8px' }}>
+    <div className="overflow-y-auto bg-black text-white" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/library/:libraryId" element={<LibraryPage />} />

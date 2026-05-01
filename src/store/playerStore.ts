@@ -385,11 +385,32 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
         playerLog('background', `页面隐藏 → 保存 session + 最终同步 · 累计${Math.round(ct)}s`);
       }
     } else if (document.visibilityState === 'visible') {
-      // 前台恢复：更新 isPlaying 状态（audio 元素可能在后台被系统暂停了）
+      // 前台恢复：根据 session 记录的状态决定是否恢复播放
+      // iOS 锁屏/后台会强制暂停 audio 元素，不能仅靠 audio.paused 判断
       if (audio.src) {
-        const wasPaused = audio.paused;
-        usePlayerStore.setState({ isPlaying: !wasPaused });
-        playerLog('background', `页面可见 → 恢复状态 · ${wasPaused ? '已暂停' : '仍在播放'}`);
+        const session = getSession();
+        const wasPlayingBeforeHide = session?.isPlaying === true;
+
+        if (wasPlayingBeforeHide && audio.paused) {
+          // 之前在播放但被系统暂停了 → 尝试自动恢复
+          playerLog('background', `页面可见 → 尝试恢复播放（audio被系统暂停）`);
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              usePlayerStore.setState({ isPlaying: true });
+              playerLog('background', `页面可见 → 播放已恢复`);
+            }).catch((err) => {
+              usePlayerStore.setState({ isPlaying: false });
+              playerWarn('background', `恢复播放失败`, { error: (err as Error).message || 'unknown' });
+            });
+          } else {
+            usePlayerStore.setState({ isPlaying: true });
+          }
+        } else {
+          // 未在播放或 audio 仍在正常播放（桌面浏览器等场景）
+          usePlayerStore.setState({ isPlaying: !audio.paused });
+          playerLog('background', `页面可见 → 状态同步 · ${audio.paused ? '已暂停' : '仍在播放'}`);
+        }
       }
     }
   };
