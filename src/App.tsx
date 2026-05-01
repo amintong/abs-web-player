@@ -15,13 +15,12 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 
 import MiniPlayer from './components/MiniPlayer';
-import DebugConsole, { DebugLabel } from './components/DebugOverlay';
+import DebugMode, { DebugTag } from './components/DebugOverlay';
 
 function ProtectedRoutes() {
   const { isAuthenticated, setLibraries, setMediaProgress } = useAppStore();
   useMediaSession();
 
-  // 已认证后，从服务器拉取最新数据（媒体进度、库列表）
   const fetched = useRef(false);
   useEffect(() => {
     if (!isAuthenticated || fetched.current) return;
@@ -33,7 +32,6 @@ function ProtectedRoutes() {
         const libs = await getLibraries();
         setLibraries(libs);
 
-        // ====== 锁屏/PWA 后台恢复：检查 session 自动续播 ======
         const session = getSession();
         if (session?.libraryItemId) {
           try {
@@ -66,24 +64,22 @@ function ProtectedRoutes() {
       }}
     >
       <Routes>
-        <Route path="/" element={<DebugLabel id="home" name="HomePage"><HomePage /></DebugLabel>} />
-        <Route path="/library/:libraryId" element={<DebugLabel id="library" name="LibraryPage"><LibraryPage /></DebugLabel>} />
-        <Route path="/item/:itemId" element={<DebugLabel id="detail" name="ItemDetailPage"><ItemDetailPage /></DebugLabel>} />
-        <Route path="/player" element={<DebugLabel id="player" name="PlayerPage"><PlayerPage /></DebugLabel>} />
-        <Route path="/search" element={<DebugLabel id="search" name="SearchPage"><SearchPage /></DebugLabel>} />
-        <Route path="/settings" element={<DebugLabel id="settings" name="SettingsPage"><SettingsPage /></DebugLabel>} />
-        {/* 未匹配路由重定向到首页 */}
+        <Route path="/" element={<DebugTag id="home" name="HomePage"><HomePage /></DebugTag>} />
+        <Route path="/library/:libraryId" element={<DebugTag id="library" name="LibraryPage"><LibraryPage /></DebugTag>} />
+        <Route path="/item/:itemId" element={<DebugTag id="detail" name="ItemDetailPage"><ItemDetailPage /></DebugTag>} />
+        <Route path="/player" element={<DebugTag id="player" name="PlayerPage"><PlayerPage /></DebugTag>} />
+        <Route path="/search" element={<DebugTag id="search" name="SearchPage"><SearchPage /></DebugTag>} />
+        <Route path="/settings" element={<DebugTag id="settings" name="SettingsPage"><SettingsPage /></DebugTag>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <DebugLabel id="miniplayer" name="MiniPlayer">
+      <DebugTag id="miniplayer" name="MiniPlayer">
         <MiniPlayer />
-      </DebugLabel>
+      </DebugTag>
     </div>
   );
 }
 
 function App() {
-  // 等待 Zustand persist 水合完成
   const [hydrated, setHydrated] = useState(useAppStore.persist.hasHydrated());
 
   useEffect(() => {
@@ -103,9 +99,9 @@ function App() {
   }
 
   return (
-    <DebugConsole>
+    <DebugMode>
       <ProtectedRoutes />
-    </DebugConsole>
+    </DebugMode>
   );
 }
 
