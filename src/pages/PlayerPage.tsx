@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Moon, ChevronDown, Settings2, List } from 'lucide-react';
-import { usePlayerStore, loadChapter } from '../store/playerStore';
+import { usePlayerStore } from '../store/playerStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { Config } from '../utils/configManager';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';
 import SlideUpPanel from '../components/SlideUpPanel';
+import { useAudioTime } from '../hooks/useAudioTime';
 
 export default function PlayerPage() {
   const {
-    isPlaying, currentItem, currentTime, duration, volume, playbackRate,
+    isPlaying, currentItem, volume, playbackRate,
     chapters, currentChapterIndex, sleepTimeRemaining,
     pause, resume, seek, setVolume, setPlaybackRate,
-    skipForward, skipBackward, setSleepTimer, clearSleepTimer,
+    switchToChapter, skipForward, skipBackward, setSleepTimer, clearSleepTimer,
   } = usePlayerStore();
 
   const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
+  const { currentTime, duration } = useAudioTime();
   const skipSettings = useSkipSettings();
   const bookSettings = currentItem ? skipSettings.getBookSettings(currentItem.id) : null;
 
@@ -232,8 +234,7 @@ export default function PlayerPage() {
           {chapters.map((ch, idx) => (
             <button key={ch.id} onClick={async () => {
               if (idx !== currentChapterIndex) {
-                await loadChapter(idx);
-                usePlayerStore.setState({ currentChapterIndex: idx, currentChapter: ch, duration: ch.duration, currentTime: 0, isPlaying: true });
+                await switchToChapter(idx);
               }
               setShowChapterPicker(false);
             }}
