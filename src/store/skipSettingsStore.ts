@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback } from 'react';
+import { useSyncExternalStore, useCallback, useMemo } from 'react';
 import { Config, type BookSkipConfig } from '../utils/configManager';
 
 export type { BookSkipConfig };
@@ -18,17 +18,20 @@ interface SkipSettingsState {
 
 /**
  * useSkipSettings — 兼容旧接口的 React Hook
- * 所有读写委托给 ConfigManager
+ * 所有读写委托给 ConfigManager。使用版本号订阅避免无限 re-render。
  */
 export function useSkipSettings(): SkipSettingsState {
-  useSyncExternalStore(
+  const version = useSyncExternalStore(
     useCallback((cb: () => void) => Config.subscribe(cb), []),
-    useCallback(() => ({}), []),
+    useCallback(() => Config.getSnapshot(), []),
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const app = useMemo(() => Config.getApp(), [version]);
+
   return {
-    get defaultIntroSeconds() { return Config.getApp().defaultIntroSeconds; },
-    get defaultOutroSeconds() { return Config.getApp().defaultOutroSeconds; },
+    get defaultIntroSeconds() { return app.defaultIntroSeconds; },
+    get defaultOutroSeconds() { return app.defaultOutroSeconds; },
 
     getBookSettings: (bookId) => Config.getBook(bookId),
     setBookIntro: (bookId, seconds) => Config.updateBook(bookId, { introSeconds: seconds }),
