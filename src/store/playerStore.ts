@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { ABSMediaItem } from '../types';
 import { getAudioUrl, getProgress, syncProgress, syncProgressNow } from '../api/audiobookshelf';
-import { useSkipSettings } from './skipSettingsStore';
 import { useAppStore } from './appStore';
 import { ABSProgress } from '../types';
 import { AudioCache } from '../utils/audioCache';
+import { Config } from '../utils/configManager';
 
 export interface PlayerChapter {
   id: number; title: string; start: number; end: number;
@@ -75,7 +75,7 @@ function startProgressLoop() {
     usePlayerStore.setState({ currentTime: ct });
 
     if (!state.currentItem || !state.currentChapter) return;
-    const settings = useSkipSettings.getState().getBookSettings(state.currentItem.id);
+    const settings = Config.getBook(state.currentItem.id);
     const chapterEnd = state.currentChapter.duration;
 
     // 自动跳过片头
@@ -216,7 +216,7 @@ export async function loadChapter(index: number) {
       // 确保加载完成后速率正确（部分浏览器在 src 变更后重置）
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ duration: audio.duration, currentTime: audio.currentTime, isPlaying: !audio.paused });
-      const settings = useSkipSettings.getState().getBookSettings(state.currentItem!.id);
+      const settings = Config.getBook(state.currentItem!.id);
       if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
       }
@@ -245,8 +245,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentChapter: null,
   currentTime: 0,
   duration: 0,
-  volume: useAppStore.getState().volume || 1,
-  playbackRate: useAppStore.getState().playbackRate || 1,
+  volume: Config.getPlayer().volume,
+  playbackRate: Config.getPlayer().playbackRate,
   chapters: [],
   currentChapterIndex: 0,
   sleepTimer: null,
@@ -375,12 +375,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (vol: number) => {
     const volClamped = Math.max(0, Math.min(1, vol));
     getAudio().volume = volClamped;
-    useAppStore.getState().setVolume(volClamped);
+    Config.updatePlayer({ volume: volClamped });
     set({ volume: volClamped });
   },
   setPlaybackRate: (rate: number) => {
     getAudio().playbackRate = rate;
-    useAppStore.getState().setPlaybackRate(rate);
+    Config.updatePlayer({ playbackRate: rate });
     set({ playbackRate: rate });
   },
   skipForward: (seconds = 30) => { const a = getAudio(); a.currentTime = Math.min(a.currentTime + seconds, a.duration); },
@@ -414,7 +414,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   skipIntro: () => {
     const { currentItem } = get();
     if (!currentItem) return;
-    const settings = useSkipSettings.getState().getBookSettings(currentItem.id);
+    const settings = Config.getBook(currentItem.id);
     getAudio().currentTime = Math.min(settings.introSeconds || 15, getAudio().duration);
   },
   skipOutro: () => { get().playNextChapter(); },

@@ -1,9 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { usePlayerStore } from '../store/playerStore';
-import { useAppStore } from '../store/appStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName } from '../utils/helpers';
+import { Config } from '../utils/configManager';
 
 export default function MiniPlayer() {
   const navigate = useNavigate();
@@ -12,7 +12,7 @@ export default function MiniPlayer() {
     isPlaying, currentItem, currentTime, duration,
     isMiniPlayerVisible, pause, resume, skipBackward, skipForward,
   } = usePlayerStore();
-  const { skipForwardSeconds, skipBackwardSeconds } = useAppStore();
+  const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
 
   // 在全屏播放器页面不显示迷你播放器（使用 React Router location，适配子路径）
   if (!isMiniPlayerVisible || !currentItem || location.pathname.endsWith('/player')) return null;

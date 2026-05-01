@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Moon, ChevronDown, Settings2, List } from 'lucide-react';
 import { usePlayerStore, loadChapter } from '../store/playerStore';
-import { useAppStore } from '../store/appStore';
 import { useSkipSettings } from '../store/skipSettingsStore';
+import { Config } from '../utils/configManager';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';
 import SlideUpPanel from '../components/SlideUpPanel';
@@ -15,7 +15,7 @@ export default function PlayerPage() {
     skipForward, skipBackward, setSleepTimer, clearSleepTimer,
   } = usePlayerStore();
 
-  const { skipForwardSeconds, skipBackwardSeconds } = useAppStore();
+  const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
   const skipSettings = useSkipSettings();
   const bookSettings = currentItem ? skipSettings.getBookSettings(currentItem.id) : null;
 
