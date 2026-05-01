@@ -21,7 +21,6 @@ export function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
   _reloadPage = registerPWASW({
-    immediate: false,
     onOfflineReady() {
       console.log('[SW] 应用已支持离线使用');
     },

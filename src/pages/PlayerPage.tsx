@@ -338,9 +338,9 @@ function ChapterPicker({
 
 export default function PlayerPage() {
   const {
-    isPlaying, currentItem, volume, playbackRate,
+    isPlaying, currentItem, playbackRate,
     chapters, currentChapterIndex, sleepTimeRemaining,
-    pause, resume, seek, setVolume, setPlaybackRate,
+    pause, resume, seek, setPlaybackRate,
     switchToChapter, skipForward, skipBackward, setSleepTimer, clearSleepTimer,
   } = usePlayerStore();
 
