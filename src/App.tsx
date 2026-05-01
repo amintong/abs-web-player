@@ -38,7 +38,7 @@ function ProtectedRoutes() {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: '8px' }}>
+    <div className="overflow-y-auto bg-black text-white" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: '8px' }}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/library/:libraryId" element={<LibraryPage />} />
@@ -69,7 +69,7 @@ function App() {
 
   if (!hydrated) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="bg-black flex items-center justify-center" style={{ height: '100dvh' }}>
         <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );

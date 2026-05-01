@@ -127,7 +127,7 @@ export default function LoginPage() {
 
   if (isAutoLogin) {
     return (
-      <div className="h-screen overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-gray-400 text-sm">正在自动登录...</p>
       </div>
@@ -135,7 +135,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="h-screen overflow-y-auto bg-black flex flex-col items-center px-6 py-8" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="overflow-y-auto bg-black flex flex-col items-center px-6 py-8" style={{ height: '100dvh', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
