@@ -243,6 +243,12 @@ async function loadChapter(index: number): Promise<boolean> {
     playerLog('chapter', `就绪后无 currentItem，跳过片头检查`);
   }
 
+  // ★ 关键：立即设 isPlaying=true，让 Scheduler 上升沿立即重启 watchdog
+  // 不依赖外部调用者（playNextChapter/switchToChapter 里的 set({ isPlaying: true })）
+  // 原因：loadChapter await 期间 audio 已经在播，但 isPlaying 还是 false，
+  //       导致 Scheduler 不启动定时器，片头 watchdog 和进度 sync 都缺失
+  usePlayerStore.setState({ isPlaying: !audio.paused });
+
   // 切章完成 → 通知 Scheduler 重建定时器
   restartTimers();
   return true;
