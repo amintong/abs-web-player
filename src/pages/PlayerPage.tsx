@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Play, Pause, SkipBack, SkipForward,
   Moon, ChevronDown, Settings2, List,
@@ -303,11 +303,24 @@ function ChapterPicker({
   currentIdx: number;
   onSelect: (idx: number) => Promise<void>;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<HTMLButtonElement>(null);
+
+  // 打开时自动滚动到当前章节（居中）
+  useEffect(() => {
+    if (visible && currentRef.current) {
+      // 短暂延迟确保 DOM 已渲染
+      requestAnimationFrame(() => {
+        currentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [visible]);
+
   return (
     <SlideUpPanel visible={visible} onClose={onClose} title="选择章节">
-      <div className="overflow-y-auto max-h-[40vh] -mx-4 px-4">
+      <div ref={listRef} className="overflow-y-auto max-h-[40vh] -mx-4 px-4">
         {chapters.map((ch, idx) => (
-          <button key={ch.id} onClick={async () => {
+          <button key={ch.id} ref={idx === currentIdx ? currentRef : undefined} onClick={async () => {
             if (idx !== currentIdx) await onSelect(idx);
             onClose();
           }}

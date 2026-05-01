@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, List, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { getItem, getCoverUrl, getProgress } from '../api/audiobookshelf';
@@ -68,15 +68,14 @@ function PlayButton({ onPlay }: { onPlay: () => void }) {
 }
 
 /** 单个章节行 */
-function ChapterRow({
-  chapter, index, isCurrent, isCompleted, onClick,
-}: {
+const ChapterRow = React.forwardRef<HTMLButtonElement, {
   chapter: import('../types').ABSChapter;
   index: number; isCurrent: boolean; isCompleted: boolean;
   onClick: () => void;
-}) {
+}>(({ chapter, index, isCurrent, isCompleted, onClick }, ref) => {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       className={`ChapterRow w-full flex items-center gap-4 p-3 rounded-xl transition-colors ${
         isCurrent ? 'bg-purple-600/20 ring-1 ring-purple-500/40' : 'hover:bg-white/5 active:bg-white/10'
@@ -102,7 +101,7 @@ function ChapterRow({
       {isCurrent && <span className="text-xs text-purple-400 flex-shrink-0">当前</span>}
     </button>
   );
-}
+});
 
 /** 章节列表区块 */
 function ChapterSection({
@@ -113,6 +112,7 @@ function ChapterSection({
   onPlay: () => void;
 }) {
   const [expanded, setExpanded] = useState(true);
+  const currentRef = useRef<HTMLButtonElement>(null);
 
   // 找当前章节
   let currentIdx = -1;
@@ -122,6 +122,15 @@ function ChapterSection({
     }
   }
   if (currentIdx === -1 && savedProgress > 0 && chapters.length > 0) currentIdx = chapters.length - 1;
+
+  // 展开时自动滚动到当前章节（居中）
+  useEffect(() => {
+    if (expanded && currentRef.current) {
+      requestAnimationFrame(() => {
+        currentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [expanded]);
 
   return (
     <div className="Detail-chapters px-4">
@@ -143,6 +152,7 @@ function ChapterSection({
               isCurrent={index === currentIdx}
               isCompleted={savedProgress > 0 && chapter.end <= savedProgress}
               onClick={onPlay}
+              ref={index === currentIdx ? currentRef : undefined}
             />
           ))}
         </div>
