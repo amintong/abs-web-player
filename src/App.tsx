@@ -15,7 +15,7 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 
 import MiniPlayer from './components/MiniPlayer';
-import DebugOverlay from './components/DebugOverlay';
+import DebugConsole, { DebugLabel } from './components/DebugOverlay';
 
 function ProtectedRoutes() {
   const { isAuthenticated, setLibraries, setMediaProgress } = useAppStore();
@@ -39,7 +39,6 @@ function ProtectedRoutes() {
           try {
             const item = await getItem(session.libraryItemId);
             if (item) {
-              // play() 内部会读取 session 精确位置并自动跳转
               usePlayerStore.getState().play(item as any);
             }
           } catch {
@@ -57,17 +56,18 @@ function ProtectedRoutes() {
   return (
     <div className="overflow-y-auto bg-black text-white" style={{ height: 'var(--app-height, 100%)', paddingTop: 'env(safe-area-inset-top)' }}>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/library/:libraryId" element={<LibraryPage />} />
-        <Route path="/item/:itemId" element={<ItemDetailPage />} />
-        <Route path="/player" element={<PlayerPage />} />
-        <Route path="/search" element={<SearchPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/" element={<DebugLabel id="home" name="HomePage"><HomePage /></DebugLabel>} />
+        <Route path="/library/:libraryId" element={<DebugLabel id="library" name="LibraryPage"><LibraryPage /></DebugLabel>} />
+        <Route path="/item/:itemId" element={<DebugLabel id="detail" name="ItemDetailPage"><ItemDetailPage /></DebugLabel>} />
+        <Route path="/player" element={<DebugLabel id="player" name="PlayerPage"><PlayerPage /></DebugLabel>} />
+        <Route path="/search" element={<DebugLabel id="search" name="SearchPage"><SearchPage /></DebugLabel>} />
+        <Route path="/settings" element={<DebugLabel id="settings" name="SettingsPage"><SettingsPage /></DebugLabel>} />
         {/* 未匹配路由重定向到首页 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <MiniPlayer />
-      <DebugOverlay />
+      <DebugLabel id="miniplayer" name="MiniPlayer">
+        <MiniPlayer />
+      </DebugLabel>
     </div>
   );
 }
@@ -78,7 +78,6 @@ function App() {
 
   useEffect(() => {
     const unsub = useAppStore.persist.onFinishHydration(() => setHydrated(true));
-    // 如果已经水合完成，直接设置
     if (useAppStore.persist.hasHydrated()) {
       setHydrated(true);
     }
@@ -93,7 +92,11 @@ function App() {
     );
   }
 
-  return <ProtectedRoutes />;
+  return (
+    <DebugConsole>
+      <ProtectedRoutes />
+    </DebugConsole>
+  );
 }
 
 export default App;
