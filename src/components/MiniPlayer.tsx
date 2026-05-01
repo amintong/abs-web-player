@@ -95,21 +95,18 @@ export default function MiniPlayer() {
     <div
       data-miniplayer="true"
       /*
-       * position: fixed + bottom: 0
-       * 在 viewport-fit=cover 模式下，fixed 元素的 bottom:0 会直接贴到
-       * 物理屏幕最底端（无视安全区），所以 gap-bottom 应该消失。
-       * padding-bottom: env(safe-area-inset-bottom) 让内容不被 Home 条遮挡。
+       * 作为 flex 子元素自然落底（外层容器是 position:fixed; inset:0，已占满物理屏幕）。
+       * - 不用 fixed → 在正常文档流中，被 flex-col 容器推到底部
+       * - flex-shrink: 0 → 不会被压缩
+       * - padding-bottom: env(safe-area-inset-bottom) → 内容避开 Home 条，但背景延伸到底
        */
-      className="MiniPlayer fixed left-0 right-0 z-50 bg-black/95 border-t border-white/10"
-      style={{ bottom: 0 }}
+      className="MiniPlayer w-full z-50 bg-black/95 border-t border-white/10 flex-shrink-0"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
     >
       <ProgressBar percent={progress} />
 
-      {/* pb 处理 iPhone 底部安全区域（Home 指示条） */}
-      <div
-        className="MiniPlayer-body flex items-center gap-3 px-4 py-3"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
+      {/* 内容区（安全区 padding 已在外层处理） */}
+      <div className="MiniPlayer-body flex items-center gap-3 px-4 py-3">
         <CoverArt itemId={currentItem.id} title={currentItem.media?.metadata?.title} />
         <TrackInfo />
         <TransportControls />

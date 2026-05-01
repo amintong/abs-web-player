@@ -52,10 +52,15 @@ function ProtectedRoutes() {
   }
 
   return (
+    /*
+     * ★ position: fixed; inset: 0
+     * 在 iOS PWA + viewport-fit=cover 下，fixed 容器会占据整个物理屏幕，
+     * 包括安全区域。这是和 absolute 的关键区别。
+     */
     <div
       className="flex flex-col"
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
@@ -76,8 +81,10 @@ function ProtectedRoutes() {
         </Routes>
       </div>
 
-      {/* MiniPlayer — fixed 定位贴物理屏幕底端（viewport-fit=cover 下 bottom:0 = 屏幕最底部） */}
-      <MiniPlayer />
+      {/* MiniPlayer — flex 子元素自然落底，flex-shrink:0 + pb 处理安全区 */}
+      <DebugTag id="miniplayer" name="MiniPlayer">
+        <MiniPlayer />
+      </DebugTag>
     </div>
   );
 }

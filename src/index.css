@@ -8,18 +8,13 @@
 }
 
 /*
- * ====== 布局策略（v12 —— 最终版） ======
+ * ====== iOS PWA 布局 v13 — 纯 CSS 声明式 ======
  *
- * 高度链：
- *   html → height: 100% + -webkit-fill-available（填满包含安全区的全部可用空间）
- *   body → height: 100%（继承）
- *   #root → height: 100%（继承）
- *
- * MiniPlayer 定位：
- *   position: fixed; bottom: 0; → viewport-fit=cover 下直接贴物理屏幕底端
- *   padding-bottom: env(safe-area-inset-bottom) → 内容不被 Home 条遮挡
- *
- * 关键：main.tsx 不再修改 html.style.height！
+ * 核心原则：
+ *   1. html/body/#root 全部 -webkit-fill-available + 100%，让浏览器自己决定高度
+ *   2. 外层容器 position:fixed; inset:0 （★ 不是 absolute！）
+ *   3. MiniPlayer 作为 flex 子元素自然落底，内部 pb 处理安全区
+ *   4. main.tsx 不再修改任何元素的 height/style
  */
 html {
   height: 100%;
@@ -28,7 +23,6 @@ html {
   overscroll-behavior: none;
   background: #000;
 
-  /* CSS 变量中转 env()，让 JS 能读取 */
   --sat: env(safe-area-inset-top);
   --sab: env(safe-area-inset-bottom);
 }
@@ -37,6 +31,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
+  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
