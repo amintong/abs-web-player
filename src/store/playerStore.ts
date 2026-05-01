@@ -53,6 +53,7 @@ function saveSession(state: PlayerState) {
       volume: state.volume ?? 1,
       timestamp: Date.now(),
     };
+    playerLog('session', '保存 session', { chapter: s.currentChapterIndex + 1, currentTime: Math.round(actualTime * 100) / 100 + 's', isPlaying: s.isPlaying, audioSrc: !!audio.src, audioPaused: audio.paused });
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
   } catch {}
 }
@@ -249,7 +250,7 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
       const settings = Config.getBook(state.currentItem!.id);
       if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
-        playerLog('chapter', `自动跳过片头 · ${settings.introSeconds}s`);
+        playerLog('chapter', `⚠️ 加载章节自动跳过片头 · ${settings.introSeconds}s`, { chapter: index + 1, duration: chapter.duration });
       }
       setupChapterWatchdog();
     } else {
@@ -277,6 +278,7 @@ function setupChapterWatchdog() {
 
     // 片头自动跳过
     if (settings.autoSkipIntro && settings.introSeconds > 0 && ct < settings.introSeconds && chapterEnd > settings.introSeconds) {
+      playerLog('chapter', `⚠️ Watchdog 片头跳过触发 · ${ct.toFixed(2)}s → ${settings.introSeconds}s`, { chapter: curState.currentChapterIndex + 1, chapterEnd });
       audio.currentTime = settings.introSeconds;
       return;
     }
@@ -395,11 +397,21 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
       if (audio.src) {
         const session = getSession();
         const wasPlayingBeforeHide = session?.isPlaying === true;
+        const currentTimeBeforePlay = audio.currentTime;
+
+        playerLog('background', `页面可见 · 音频状态检查`, {
+          audioSrc: !!audio.src,
+          audioPaused: audio.paused,
+          currentTime: Math.round(currentTimeBeforePlay * 100) / 100 + 's',
+          wasPlayingBeforeHide,
+          sessionChapter: session ? session.currentChapterIndex + 1 : 'N/A',
+          sessionTime: session ? Math.round(session.currentTime * 100) / 100 + 's' : 'N/A',
+        });
 
         if (wasPlayingBeforeHide && audio.paused) {
           // 之前在播放但被系统暂停了 → 尝试自动恢复（带令牌校验防竞态）
           const token = ++restoreGen;
-          playerLog('background', `页面可见 → 尝试恢复播放（audio被系统暂停）· token=${token}`);
+          playerLog('background', `尝试恢复播放（audio被系统暂停）· token=${token}`, { currentTime: Math.round(currentTimeBeforePlay * 100) / 100 + 's' });
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise.then(() => {
@@ -408,8 +420,9 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
                 playerLog('background', `恢复播放回调已过期 · token=${token} ≠ current=${restoreGen}，忽略`);
                 return;
               }
+              const ctAfter = audio.currentTime;
+              playerLog('background', `播放已恢复 · token=${token}`, { currentTimeAfterPlay: Math.round(ctAfter * 100) / 100 + 's', timeChanged: Math.abs(ctAfter - currentTimeBeforePlay) > 0.5 ? `⚠️ 变化了 ${Math.round((ctAfter - currentTimeBeforePlay) * 100) / 100}s` : '无变化' });
               usePlayerStore.setState({ isPlaying: true });
-              playerLog('background', `页面可见 → 播放已恢复 · token=${token}`);
             }).catch((err) => {
               if (token !== restoreGen) return;
               usePlayerStore.setState({ isPlaying: false });
@@ -422,7 +435,7 @@ function startSyncAndSleep(libraryItemId: string, mediaItemId: string, savedCumu
         } else {
           // 未在播放或 audio 仍在正常播放（桌面浏览器等场景）
           usePlayerStore.setState({ isPlaying: !audio.paused });
-          playerLog('background', `页面可见 → 状态同步 · ${audio.paused ? '已暂停' : '仍在播放'}`);
+          playerLog('background', `状态同步`, { reason: wasPlayingBeforeHide ? 'audio未暂停（桌面？）' : '之前未在播放', audioPaused: audio.paused, currentTime: Math.round(audio.currentTime * 100) / 100 + 's' });
         }
       }
     }
@@ -526,10 +539,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.playbackRate = get().playbackRate;
 
     audio.play().then(() => {
+      const ctBeforeSeek = audio.currentTime;
       if (chapterOffset > 0) {
         audio.currentTime = Math.min(chapterOffset, audio.duration || targetChapter.duration);
       }
-      playerLog('play', `播放已启动 · 第${targetChapterIndex + 1}/${chapters.length}章${chapterOffset ? ` · ${Math.round(chapterOffset)}s处恢复` : ''}`);
+      playerLog('play', `播放已启动 · 第${targetChapterIndex + 1}/${chapters.length}章${chapterOffset ? ` · ${Math.round(chapterOffset)}s处恢复` : '（从头）'}`, {
+        ctBeforeSeek: Math.round(ctBeforeSeek * 100) / 100 + 's',
+        ctAfterSeek: Math.round(audio.currentTime * 100) / 100 + 's',
+        chapterOffset: Math.round(chapterOffset * 100) / 100 + 's',
+        source: session && session.libraryItemId === libraryItemId ? 'session' : 'server',
+      });
       set({ isPlaying: true });
       setupChapterWatchdog();
       startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
