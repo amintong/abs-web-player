@@ -306,7 +306,6 @@ function setupChapterWatchdog() {
   cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
 
   // 记录注册时的基准时间，用于过滤 iOS 后台恢复时的 currentTime 异常
-  const registeredAt = Date.now();
   let lastKnownGoodTime: number | null = null;
 
   // 安全读取 currentTime：过滤掉 iOS 后台恢复导致的异常归零
@@ -322,17 +321,45 @@ function setupChapterWatchdog() {
   };
 
   // 核心检查逻辑（供首次调用和 timeupdate 共用）
-  const runChecks = () => {
+  const runChecks = (source: string) => {
     const curState = usePlayerStore.getState();
-    if (!curState.currentItem || !curState.currentChapter) return;
+    if (!curState.currentItem || !curState.currentChapter) {
+      playerLog('chapter', `[runChecks:${source}] 跳过 · 无当前项或章节`, { hasItem: !!curState.currentItem, hasChapter: !!curState.currentChapter });
+      return;
+    }
     const ct = safeCurrentTime();
     const settings = Config.getBook(curState.currentItem.id);
     const chapterEnd = curState.currentChapter.duration;
 
+    const introEnabled = settings.autoSkipIntro && settings.introSeconds > 0;
+    const outroEnabled = settings.autoSkipOutro && settings.outroSeconds > 0;
+    const inIntroZone = ct < settings.introSeconds;
+    const inOutroZone = ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd;
+    const atEnd = ct >= chapterEnd;
+    const introExtraGuard = ct < Math.min(settings.introSeconds, 5);
+    const durationOk = chapterEnd > settings.introSeconds;
+
+    playerLog('chapter', `[runChecks:${source}] 检查完成 · 无命中`, {
+      ct: ct.toFixed(2) + 's',
+      chapterEnd: chapterEnd.toFixed(2) + 's',
+      paused: audio.paused,
+      chIdx: curState.currentChapterIndex + 1,
+      // 片头条件逐项
+      intro_enabled: introEnabled,
+      intro_ct_lt_intro: inIntroZone ? `ct(${ct.toFixed(1)}s) < intro(${settings.introSeconds}s)` : `❌`,
+      intro_duration_ok: durationOk ? `chapterEnd(${chapterEnd.toFixed(1)}s) > intro(${settings.introSeconds}s)` : `❌`,
+      intro_extra_guard: introExtraGuard ? `ct(${ct.toFixed(1)}s) < ${Math.min(settings.introSeconds, 5)}s` : `❌`,
+      intro_最终结果: introEnabled && inIntroZone && durationOk && introExtraGuard ? '⚠️ 应跳过片头!' : '-',
+      // 片尾条件逐项
+      outro_enabled: outroEnabled,
+      outro_zone: inOutroZone ? `ct(${ct.toFixed(1)}s) ∈ [${(chapterEnd - settings.outroSeconds).toFixed(1)}, ${chapterEnd.toFixed(1)})` : `❌`,
+      outro_最终结果: outroEnabled && inOutroZone ? '⚠️ 应切章片尾!' : '-',
+      // 结束
+      end_hit: atEnd ? `ct(${ct.toFixed(1)}s) >= end(${chapterEnd.toFixed(1)}s)` : '-',
+    });
+
     // 片头自动跳过（仅在章节刚开始时生效，防止中途误触发）
-    if (settings.autoSkipIntro && settings.introSeconds > 0 
-        && ct < settings.introSeconds && chapterEnd > settings.introSeconds
-        && ct < Math.min(settings.introSeconds, 5)) { // 额外守卫：ct 必须在开头几秒内
+    if (introEnabled && inIntroZone && durationOk && introExtraGuard) {
       playerLog('chapter', `⚠️ Watchdog 片头跳过触发 · ${ct.toFixed(2)}s → ${settings.introSeconds}s`, { chapter: curState.currentChapterIndex + 1, chapterEnd });
       audio.currentTime = settings.introSeconds;
       lastKnownGoodTime = settings.introSeconds;
@@ -340,8 +367,7 @@ function setupChapterWatchdog() {
     }
 
     // 片尾自动切章
-    if (settings.autoSkipOutro && settings.outroSeconds > 0 
-        && ct >= chapterEnd - settings.outroSeconds && ct < chapterEnd) {
+    if (outroEnabled && inOutroZone) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
         playerLog('chapter', `片尾自动切章 · 第${idx + 1}章 → 第${idx + 2}章`);
@@ -355,7 +381,7 @@ function setupChapterWatchdog() {
     }
 
     // 自然结束切章（含片尾右边界等号覆盖）
-    if (ct >= chapterEnd) {
+    if (atEnd) {
       const { currentChapterIndex: idx, chapters: chs } = usePlayerStore.getState();
       if (idx < chs.length - 1) {
         playerLog('chapter', `章节结束 · 第${idx + 1}章 → 第${idx + 2}章`);
@@ -372,14 +398,14 @@ function setupChapterWatchdog() {
   // timeupdate 事件监听（带 paused 守卫，暂停时不做切章）
   const onTimeUpdate = () => {
     if (audio.paused) return;
-    runChecks();
+    runChecks('timeupdate');
   };
 
   audio.addEventListener('timeupdate', onTimeUpdate);
   wdOnTimeUpdate = onTimeUpdate; // 记录引用，供 cleanupWatchdog 使用
 
   // ⚡ 立即执行一次（不管是否 paused），确保片头跳过等不遗漏
-  runChecks();
+  runChecks('immediate');
 
   // onended 兜底
   audio.onended = () => {
