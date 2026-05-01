@@ -94,7 +94,14 @@ export default function MiniPlayer() {
   return (
     <div
       data-miniplayer="true"
-      className="MiniPlayer left-0 right-0 z-50 bg-black/95 border-t border-white/10"
+      /*
+       * position: fixed + bottom: 0
+       * 在 viewport-fit=cover 模式下，fixed 元素的 bottom:0 会直接贴到
+       * 物理屏幕最底端（无视安全区），所以 gap-bottom 应该消失。
+       * padding-bottom: env(safe-area-inset-bottom) 让内容不被 Home 条遮挡。
+       */
+      className="MiniPlayer fixed left-0 right-0 z-50 bg-black/95 border-t border-white/10"
+      style={{ bottom: 0 }}
     >
       <ProgressBar percent={progress} />
 

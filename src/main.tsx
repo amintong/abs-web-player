@@ -7,19 +7,11 @@ import './index.css';
 
 const baseUrl = import.meta.env.BASE_URL || '/';
 
-// ====== iOS PWA Viewport 修复 ======
-//
-// 关键认知（血泪教训）：
-//   当 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" /> 时，
-//   visualViewport.height === screen.height，视口已覆盖完整物理屏幕（含安全区）。
-//   此时绝不能再加 safeBottom，否则 html 会超出屏幕导致布局崩坏。
-//
-//   反之如果是 "black" 或默认样式，vv.height 不含安全区，才需要加。
-//
-// 本项目用 black-translucent，所以：
-//   html 高度 = vv.height（已含安全区，无需修正）
-//   safe-top / safe-bottom 仅用于 padding/margin 等内边距场景
-//
+// ====== iOS PWA Viewport ======
+// 核心原则：
+//   1. 不再用 JS 强制修改 html.style.height（会把容器锁死在 innerHeight 内）
+//   2. 只通过 CSS 变量中转 env(safe-area-inset-*) 值供其他地方使用
+//   3. html 高度完全交给 CSS (height: 100% + -webkit-fill-available) 处理
 function setAppViewport() {
   const vv = window.visualViewport;
   const vh = vv?.height ?? window.innerHeight;
@@ -31,15 +23,12 @@ function setAppViewport() {
   const safeTop = parseFloat(satRaw) || 0;
   const safeBottom = parseFloat(sabRaw) || 0;
 
-  // 写入 CSS 变量供全局使用
+  // 仅写入信息性 CSS 变量，绝不修改 html.style.height
   document.documentElement.style.setProperty('--app-height', `${vh}px`);
   document.documentElement.style.setProperty('--app-full-height', `${vh}px`);
   document.documentElement.style.setProperty('--vh', `${vh * 0.01}px`);
   document.documentElement.style.setProperty('--safe-top', `${safeTop}px`);
   document.documentElement.style.setProperty('--safe-bottom', `${safeBottom}px`);
-
-  // ★ html 高度 = 视口高度（black-translucent 下已含安全区）
-  document.documentElement.style.setProperty('height', `${vh}px`);
 }
 
 setAppViewport();

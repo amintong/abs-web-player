@@ -8,19 +8,27 @@
 }
 
 /*
- * ====== 布局策略 ======
- * 1. 通过 CSS 变量中转 env(safe-area-inset-*)，让 JS 能读取安全区数值
- * 2. html 高度由 main.tsx 通过 JS 动态设置为 screen 可用总高度
- * 3. body / #root 继承 100% 高度链
- * 4. MiniPlayer 作为 flex 子元素自然落底（不用 fixed）
+ * ====== 布局策略（v12 —— 最终版） ======
+ *
+ * 高度链：
+ *   html → height: 100% + -webkit-fill-available（填满包含安全区的全部可用空间）
+ *   body → height: 100%（继承）
+ *   #root → height: 100%（继承）
+ *
+ * MiniPlayer 定位：
+ *   position: fixed; bottom: 0; → viewport-fit=cover 下直接贴物理屏幕底端
+ *   padding-bottom: env(safe-area-inset-bottom) → 内容不被 Home 条遮挡
+ *
+ * 关键：main.tsx 不再修改 html.style.height！
  */
 html {
   height: 100%;
+  height: -webkit-fill-available;
   overflow: hidden;
   overscroll-behavior: none;
   background: #000;
 
-  /* ← 关键：将 env() 值存入 CSS 自定义变量，JS 即可读取 */
+  /* CSS 变量中转 env()，让 JS 能读取 */
   --sat: env(safe-area-inset-top);
   --sab: env(safe-area-inset-bottom);
 }

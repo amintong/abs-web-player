@@ -76,10 +76,8 @@ function ProtectedRoutes() {
         </Routes>
       </div>
 
-      {/* MiniPlayer — 作为 flex 子元素自然在底部，不需要 fixed */}
-      <DebugTag id="miniplayer" name="MiniPlayer">
-        <MiniPlayer />
-      </DebugTag>
+      {/* MiniPlayer — fixed 定位贴物理屏幕底端（viewport-fit=cover 下 bottom:0 = 屏幕最底部） */}
+      <MiniPlayer />
     </div>
   );
 }
