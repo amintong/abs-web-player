@@ -67,8 +67,8 @@ function ChapterLabel({
 }
 
 /** 进度条 */
-function SeekBar({ currentTime, duration, progress, onSeek }: {
-  currentTime: number; duration: number; progress: number;
+function SeekBar({ currentTime, duration, onSeek }: {
+  currentTime: number; duration: number;
   onSeek: (t: number) => void;
 }) {
   return (
@@ -382,8 +382,6 @@ export default function PlayerPage() {
     );
   }
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
   return (
     <div className="h-full overflow-hidden bg-black flex flex-col">
       <TopBar
@@ -402,7 +400,7 @@ export default function PlayerPage() {
         />
       )}
 
-      <SeekBar currentTime={currentTime} duration={duration} progress={progress} onSeek={seek} />
+      <SeekBar currentTime={currentTime} duration={duration} onSeek={seek} />
 
       {bookSettings && (
         <SkipButtons bookSettings={bookSettings} skipSettings={skipSettings} itemId={currentItem.id} />

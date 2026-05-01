@@ -141,6 +141,9 @@ let cleanupFns: (() => void)[] = [];
 // 用户主动操作（pause/resume/stop）时递增代数，使过期回调失效
 let restoreGen = 0;
 
+// Watchdog 监听器引用（用于切章时精确清理，不碰 sync/sleep/visibility）
+let wdOnTimeUpdate: (() => void) | null = null;
+
 function getAudio(): HTMLAudioElement {
   if (!audioEl) {
     audioEl = new Audio();
@@ -158,6 +161,19 @@ function cleanupAll() {
   cleanupFns = [];
   if (syncInterval) { clearInterval(syncInterval); syncInterval = null; }
   if (sleepIntervalId) { clearInterval(sleepIntervalId); sleepIntervalId = null; }
+  wdOnTimeUpdate = null;
+}
+
+/** 仅清理 watchdog 的 timeupdate + onended（切章时调用，保留 sync/sleep/visibility） */
+function cleanupWatchdog() {
+  const audio = audioEl;
+  if (audio && wdOnTimeUpdate) {
+    audio.removeEventListener('timeupdate', wdOnTimeUpdate);
+    audio.onended = null;
+    // 从 cleanupFns 中移除对应的 watchdog 清理函数（最后两个）
+    cleanupFns = cleanupFns.slice(0, -2);
+  }
+  wdOnTimeUpdate = null;
 }
 
 function pushCleanup(fn: () => void) {
@@ -223,6 +239,8 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
 
   playerLog('chapter', `加载章节 ${index + 1}/${state.chapters.length}`, { title: chapter.title });
 
+  cleanupWatchdog(); // ← 清理旧 watchdog（防止监听器叠加）
+
   const url = getAudioUrl(state.currentItem.id, chapter.ino);
   const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
   if (cachedUrl !== url) {
@@ -238,15 +256,38 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = state.volume;
 
+  // 错误处理：音频加载失败时记录日志并尝试继续
+  const onError = () => {
+    playerWarn('play', `章节音频加载失败 · 第${index + 1}章`, { error: audio.error?.message || 'unknown' });
+  };
+  audio.addEventListener('error', onError);
+
   audio.play().catch(() => {
     usePlayerStore.setState({ isPlaying: false });
   });
 
-  // 等待就绪后启动看门狗（片头跳过由 watchdog 统一处理，不在此处重复执行）
+  // 等待就绪后启动看门狗（带超时保护，防止死循环）
+  const TIMEOUT_MS = 15000; // 15 秒超时
+  const startTime = performance.now();
+  let settled = false;
+
   const checkLoaded = () => {
+    if (settled) return;
     if (audio.readyState >= 3) {
+      settled = true;
+      audio.removeEventListener('error', onError);
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ isPlaying: !audio.paused });
+      setupChapterWatchdog();
+    } else if (performance.now() - startTime > TIMEOUT_MS) {
+      settled = true;
+      audio.removeEventListener('error', onError);
+      playerWarn('chapter', `章节加载超时 · 第${index + 1}章 · readyState=${audio.readyState}`, {
+        timeout: TIMEOUT_MS + 'ms',
+        networkState: audio.networkState,
+        error: audio.error?.message || 'none',
+      });
+      // 超时也尝试启动 watchdog（部分数据可能已可播放）
       setupChapterWatchdog();
     } else {
       requestAnimationFrame(checkLoaded);
@@ -262,6 +303,7 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
  */
 function setupChapterWatchdog() {
   const audio = getAudio();
+  cleanupWatchdog(); // ← 先清理旧的 watchdog（防止切章时监听器叠加）
 
   const onTimeUpdate = () => {
     if (audio.paused) return;
@@ -308,6 +350,7 @@ function setupChapterWatchdog() {
   };
 
   audio.addEventListener('timeupdate', onTimeUpdate);
+  wdOnTimeUpdate = onTimeUpdate; // 记录引用，供 cleanupWatchdog 使用
   onTimeUpdate(); // 立即检查一次
 
   // onended 兜底
@@ -522,9 +565,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       libraryItemId, mediaItemId,
     });
 
-    // 加载音频
+    // 加载音频（先设置 onerror，再设置 src）
     const url = getAudioUrl(item.id, targetChapter.ino);
     const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
+
+    audio.onerror = () => {
+      console.warn('Audio error:', audio.error?.message);
+      playerWarn('play', '音频加载错误', { error: audio.error?.message || 'unknown' });
+      set({ isPlaying: false });
+    };
     audio.src = cachedUrl;
 
     const chapterUrls = chapters.map(ch => getAudioUrl(item.id, ch.ino));
@@ -552,12 +601,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       playerWarn('play', '播放启动失败', { error: err.message });
       set({ isPlaying: false });
     });
-
-    audio.onerror = () => {
-      console.warn('Audio error:', audio.error?.message);
-      playerWarn('play', '音频加载错误', { error: audio.error?.message || 'unknown' });
-      set({ isPlaying: false });
-    };
   },
 
   pause: () => {

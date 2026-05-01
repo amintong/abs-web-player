@@ -51,7 +51,6 @@ export default function FullPlayer() {
 
   if (!isFullPlayerVisible || !currentItem) return null;
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const currentChapter = chapters[currentChapterIndex];
 
   const handleSaveSkip = () => {
