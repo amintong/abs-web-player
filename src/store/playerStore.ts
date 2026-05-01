@@ -582,6 +582,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     audio.volume = get().volume;
     audio.playbackRate = get().playbackRate;
 
+    // 尝试播放（可能被 iOS 自动播放策略拒绝，但不影响 watchdog/sync 启动）
     audio.play().then(() => {
       const ctBeforeSeek = audio.currentTime;
       if (chapterOffset > 0) {
@@ -594,13 +595,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         source: session && session.libraryItemId === libraryItemId ? 'session' : 'server',
       });
       set({ isPlaying: true });
-      setupChapterWatchdog();
-      startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
     }).catch((err) => {
       console.warn('Audio play rejected:', err.message);
-      playerWarn('play', '播放启动失败', { error: err.message });
+      playerWarn('play', '播放启动失败（watchdog/sync 已就绪，等待用户恢复）', { error: err.message });
       set({ isPlaying: false });
     });
+
+    // 独立于 play() 成败：等待音频加载完成后启动 watchdog + sync
+    // 即使 play() 被浏览器策略拒绝，watchdog 也必须运行（用户手动恢复后才能切章）
+    const PLAY_TIMEOUT_MS = 15000;
+    const t0 = performance.now();
+    let settled = false;
+
+    const waitAndStart = () => {
+      if (settled) return;
+      if (audio.readyState >= 3) {
+        settled = true;
+        if (chapterOffset > 0 && !audio.paused) {
+          audio.currentTime = Math.min(chapterOffset, audio.duration || targetChapter.duration);
+        }
+        setupChapterWatchdog();
+        startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
+        playerLog('play', `Watchdog + Sync 已启动 · readyState=${audio.readyState}`);
+      } else if (performance.now() - t0 > PLAY_TIMEOUT_MS) {
+        settled = true;
+        playerWarn('play', `音频加载超时，仍启动 watchdog · readyState=${audio.readyState}`, { timeout: PLAY_TIMEOUT_MS + 'ms' });
+        setupChapterWatchdog();
+        startSyncAndSleep(libraryItemId, mediaItemId, savedCumulativeTime);
+      } else {
+        requestAnimationFrame(waitAndStart);
+      }
+    };
+    requestAnimationFrame(waitAndStart);
   },
 
   pause: () => {
