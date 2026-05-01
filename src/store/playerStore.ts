@@ -242,16 +242,11 @@ async function loadChapterInternal(index: number, state: PlayerState): Promise<b
     usePlayerStore.setState({ isPlaying: false });
   });
 
-  // 等待就绪后设置片头跳过
+  // 等待就绪后启动看门狗（片头跳过由 watchdog 统一处理，不在此处重复执行）
   const checkLoaded = () => {
     if (audio.readyState >= 3) {
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ isPlaying: !audio.paused });
-      const settings = Config.getBook(state.currentItem!.id);
-      if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
-        audio.currentTime = settings.introSeconds;
-        playerLog('chapter', `⚠️ 加载章节自动跳过片头 · ${settings.introSeconds}s`, { chapter: index + 1, duration: chapter.duration });
-      }
       setupChapterWatchdog();
     } else {
       requestAnimationFrame(checkLoaded);
