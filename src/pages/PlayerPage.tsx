@@ -10,6 +10,7 @@ import type { BookSkipConfig } from '../utils/configManager';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';
 import SlideUpPanel from '../components/SlideUpPanel';
+import Slider from '../components/Slider';
 import { useAudioTime } from '../hooks/useAudioTime';
 
 /* ── 子组件 ────────────────────────────────────────────── */
@@ -72,11 +73,9 @@ function SeekBar({ currentTime, duration, progress, onSeek }: {
 }) {
   return (
     <div className="Player-seekBar px-8 mb-6">
-      <input
-        type="range" min={0} max={duration || 100} step={1} value={currentTime}
-        onChange={(e) => onSeek(parseFloat(e.target.value))}
-        className="w-full h-1 rounded-full appearance-none cursor-pointer seek-bar"
-        style={{ background: `linear-gradient(to right, #8b5cf6 ${progress}%, rgba(255,255,255,0.2) ${progress}%)` }}
+      <Slider
+        value={currentTime} min={0} max={duration || 100}
+        onChange={onSeek}
       />
       <div className="flex justify-between mt-2 text-xs text-gray-400">
         <span>{formatTime(currentTime)}</span>
@@ -262,9 +261,8 @@ function SkipConfigPanel({
             >自动{bookSettings.autoSkipIntro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
-            <input type="range" min={0} max={120} step={5} value={parseInt(editIntro) || 0}
-              onChange={(e) => setEditIntro(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-              style={{ background: `linear-gradient(to right, #8b5cf6 ${(parseInt(editIntro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editIntro) || 0) / 120 * 100}%)` }} />
+            <Slider min={0} max={120} step={5} value={parseInt(editIntro) || 0}
+              onChange={(v) => setEditIntro(String(v))} />
             <SecInput value={editIntro} onChange={setEditIntro} max={300} />
             <span className="text-xs text-gray-400">秒</span>
           </div>
@@ -279,9 +277,8 @@ function SkipConfigPanel({
             >自动{bookSettings.autoSkipOutro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
-            <input type="range" min={0} max={120} step={5} value={parseInt(editOutro) || 0}
-              onChange={(e) => setEditOutro(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-              style={{ background: `linear-gradient(to right, #3b82f6 ${(parseInt(editOutro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editOutro) || 0) / 120 * 100}%)` }} />
+            <Slider min={0} max={120} step={5} value={parseInt(editOutro) || 0}
+              onChange={(v) => setEditOutro(String(v))} color="#3b82f6" />
             <SecInput value={editOutro} onChange={setEditOutro} max={300} />
             <span className="text-xs text-gray-400">秒</span>
           </div>

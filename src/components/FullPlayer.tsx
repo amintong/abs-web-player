@@ -5,6 +5,7 @@ import { useSkipSettings } from '../store/skipSettingsStore';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime } from '../utils/helpers';
 import { useAudioTime } from '../hooks/useAudioTime';
+import Slider from './Slider';
 
 export default function FullPlayer() {
   const {
@@ -95,12 +96,7 @@ export default function FullPlayer() {
 
       {/* 进度条 */}
       <div className="px-8 mb-6">
-        <input
-          type="range" min="0" max={duration || 100} step="1" value={currentTime}
-          onChange={(e) => seek(parseFloat(e.target.value))}
-          className="w-full h-1 rounded-full appearance-none cursor-pointer seek-bar"
-          style={{ background: `linear-gradient(to right, #8b5cf6 ${progress}%, rgba(255,255,255,0.2) ${progress}%)` }}
-        />
+        <Slider value={currentTime} min={0} max={duration || 100} onChange={seek} />
         <div className="flex justify-between mt-2 text-xs text-gray-400">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
@@ -174,9 +170,7 @@ export default function FullPlayer() {
         <button onClick={() => setVolume(volume > 0 ? 0 : 1)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
           {volume === 0 ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-gray-400" />}
         </button>
-        <input type="range" min="0" max="1" step="0.05" value={volume} onChange={(e) => setVolume(parseFloat(e.target.value))}
-          className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-          style={{ background: `linear-gradient(to right, #8b5cf6 ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%)` }} />
+        <Slider value={volume} min={0} max={1} step={0.05} onChange={setVolume} />
       </div>
 
       {/* 倍速选择器 */}
@@ -232,10 +226,8 @@ export default function FullPlayer() {
                 >自动跳过 {bookSettings?.autoSkipIntro ? '开' : '关'}</button>
               </div>
               <div className="flex items-center gap-3">
-                <input type="range" min="0" max="120" step="5" value={parseInt(editIntro) || 0}
-                  onChange={(e) => setEditIntro(e.target.value)}
-                  className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #8b5cf6 ${(parseInt(editIntro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editIntro) || 0) / 120 * 100}%)` }} />
+                <Slider min={0} max={120} step={5} value={parseInt(editIntro) || 0}
+                  onChange={(v) => setEditIntro(String(v))} />
                 <input type="number" value={editIntro} onChange={(e) => setEditIntro(e.target.value)}
                   className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center" min="0" max="300" />
                 <span className="text-xs text-gray-400">秒</span>
@@ -252,10 +244,8 @@ export default function FullPlayer() {
                 >自动跳过 {bookSettings?.autoSkipOutro ? '开' : '关'}</button>
               </div>
               <div className="flex items-center gap-3">
-                <input type="range" min="0" max="120" step="5" value={parseInt(editOutro) || 0}
-                  onChange={(e) => setEditOutro(e.target.value)}
-                  className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #3b82f6 ${(parseInt(editOutro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editOutro) || 0) / 120 * 100}%)` }} />
+                <Slider min={0} max={120} step={5} value={parseInt(editOutro) || 0}
+                  onChange={(v) => setEditOutro(String(v))} color="#3b82f6" />
                 <input type="number" value={editOutro} onChange={(e) => setEditOutro(e.target.value)}
                   className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center" min="0" max="300" />
                 <span className="text-xs text-gray-400">秒</span>

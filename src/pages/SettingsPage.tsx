@@ -9,6 +9,7 @@ import { AudioCache } from '../utils/audioCache';
 import { useAppConfig } from '../utils/configManager';
 import { clearLogs, subscribeLogs, type LogEntry, type LogModule } from '../utils/playerLogger';
 import SlideUpPanel from '../components/SlideUpPanel';
+import Slider from '../components/Slider';
 
 // ====== 日志查看器组件 =======
 
@@ -194,8 +195,7 @@ export default function SettingsPage() {
               </div>
               <span className="text-sm text-gray-400">{Math.round(volume * 100)}%</span>
             </div>
-            <input type="range" min="0" max="1" step="0.05" value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))} className="w-full h-2 rounded-full appearance-none cursor-pointer" />
+            <Slider value={volume} min={0} max={1} step={0.05} onChange={setVolume} />
           </div>
 
           <div className="px-4 py-4">
@@ -225,18 +225,16 @@ export default function SettingsPage() {
             <div>
               <label className="block text-sm text-white mb-2">默认跳过片头 (秒)</label>
               <div className="flex items-center gap-3">
-                <input type="range" min="0" max="120" step="5" value={parseInt(editDefaultIntro) || 0}
-                  onChange={(e) => setEditDefaultIntro(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #8b5cf6 ${(parseInt(editDefaultIntro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editDefaultIntro) || 0) / 120 * 100}%)` }} />
+                <Slider min={0} max={120} step={5} value={parseInt(editDefaultIntro) || 0}
+                  onChange={(v) => setEditDefaultIntro(String(v))} />
                 <span className="text-white text-sm w-12 text-center">{editDefaultIntro}s</span>
               </div>
             </div>
             <div>
               <label className="block text-sm text-white mb-2">默认跳过片尾 (秒)</label>
               <div className="flex items-center gap-3">
-                <input type="range" min="0" max="120" step="5" value={parseInt(editDefaultOutro) || 0}
-                  onChange={(e) => setEditDefaultOutro(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #3b82f6 ${(parseInt(editDefaultOutro) || 0) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editDefaultOutro) || 0) / 120 * 100}%)` }} />
+                <Slider min={0} max={120} step={5} value={parseInt(editDefaultOutro) || 0}
+                  onChange={(v) => setEditDefaultOutro(String(v))} color="#3b82f6" />
                 <span className="text-white text-sm w-12 text-center">{editDefaultOutro}s</span>
               </div>
             </div>
@@ -262,9 +260,8 @@ export default function SettingsPage() {
                 <label className="text-sm text-white">快进 (秒)</label>
               </div>
               <div className="flex items-center gap-3">
-                <input type="range" min="5" max="300" step="5" value={parseInt(editSkipForward) || 30}
-                  onChange={(e) => setEditSkipForward(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #8b5cf6 ${(parseInt(editSkipForward) || 30) / 300 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editSkipForward) || 30) / 300 * 100}%)` }} />
+                <Slider min={5} max={300} step={5} value={parseInt(editSkipForward) || 30}
+                  onChange={(v) => setEditSkipForward(String(v))} />
                 <span className="text-white text-sm w-12 text-center">{editSkipForward}s</span>
               </div>
             </div>
@@ -274,9 +271,8 @@ export default function SettingsPage() {
                 <label className="text-sm text-white">快退 (秒)</label>
               </div>
               <div className="flex items-center gap-3">
-                <input type="range" min="5" max="120" step="5" value={parseInt(editSkipBackward) || 10}
-                  onChange={(e) => setEditSkipBackward(e.target.value)} className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                  style={{ background: `linear-gradient(to right, #3b82f6 ${(parseInt(editSkipBackward) || 10) / 120 * 100}%, rgba(255,255,255,0.2) ${(parseInt(editSkipBackward) || 10) / 120 * 100}%)` }} />
+                <Slider min={5} max={120} step={5} value={parseInt(editSkipBackward) || 10}
+                  onChange={(v) => setEditSkipBackward(String(v))} color="#3b82f6" />
                 <span className="text-white text-sm w-12 text-center">{editSkipBackward}s</span>
               </div>
             </div>
