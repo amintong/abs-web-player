@@ -14,9 +14,9 @@ import Slider from '../components/Slider';
 // ====== 日志查看器组件 =======
 
 const MODULE_LABELS: Record<LogModule | 'all', string> = {
-  all: '全部', play: '播放', chapter: '章节', cache: '缓存',
-  session: 'Session', sync: '同步', background: '后台',
-  sleep: '睡眠', system: '系统',
+  all: '全部', lifecycle: '生命周期', chapter: '章节', cache: '缓存',
+  sync: '同步', background: '后台',
+  sleep: '睡眠', watchdog: '看门狗', system: '系统',
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -24,13 +24,13 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 const MODULE_COLORS: Record<LogModule, string> = {
-  play: 'bg-purple-500/20 text-purple-300',
+  lifecycle: 'bg-purple-500/20 text-purple-300',
   chapter: 'bg-blue-500/20 text-blue-300',
   cache: 'bg-green-500/20 text-green-300',
-  session: 'bg-cyan-500/20 text-cyan-300',
   sync: 'bg-orange-500/20 text-orange-300',
   background: 'bg-pink-500/20 text-pink-300',
   sleep: 'bg-indigo-500/20 text-indigo-300',
+  watchdog: 'bg-red-500/20 text-red-300',
   system: 'bg-gray-500/20 text-gray-300',
 };
 

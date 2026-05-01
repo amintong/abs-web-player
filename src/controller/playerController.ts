@@ -8,10 +8,14 @@
  * │  ① Types          接口定义                   │
  * │  ② Audio           底层 <audio> 单例         │
  * │  ③ Utils           纯工具函数                 │
- * │  ④ Timers          定时子系统（watchdog/sync）│
- * │  ⑤ ChapterLoad     章节加载流程              │
- * │  ⑥ Store           Zustand 状态 + 命令        │
+ * │  ④ ChapterLoad     章节加载流程              │
+ * │  ⑤ Store           Zustand 状态 + 命令        │
  * └──────────────────────────────────────────────┘
+ *
+ * 定时任务（watchdog / sync / sleep）→ 由 timerScheduler.ts 自动管理。
+ *   业务代码只改 isPlaying 状态，Scheduler 轮询状态自动启停定时器。
+ *   切章后需调用 restartTimers() 让 Scheduler 重建 watchdog（章节信息变了）。
+ *
  * 后台事件（visibility/pagehide/锁屏恢复）→ controller/background.ts
  *
  * 不负责：currentTime/duration（由 useAudioTime hook 直接读 audio 元素）
@@ -19,17 +23,20 @@
 
 import { create } from 'zustand';
 import { ABSMediaItem } from '../types';
-import { getAudioUrl, getProgress, syncProgress, syncProgressNow } from '../api/audiobookshelf';
-import { useAppStore } from './appStore';
-import { ABSProgress } from '../types';
+import { getAudioUrl, getProgress } from '../api/audiobookshelf';
 import { AudioCache } from '../utils/audioCache';
 import { Config } from '../utils/configManager';
 import { playerLog, playerWarn } from '../utils/playerLogger';
 import {
   initDeps as initBackground,
   initBackground as startBackgroundEvents,
-  restoreGen,
+  bumpRestoreGen,
 } from '../controller/background';
+import {
+  initSchedulerDeps,
+  initScheduler,
+  restartTimers,
+} from './timerScheduler';
 
 // ════════════════════════════════════════
 // ① Types
@@ -132,27 +139,6 @@ export function cumulativeTime(chapters: PlayerChapter[], chapterIdx: number, ti
   return cum + timeInChapter;
 }
 
-/** 更新本地进度缓存（用于 UI 展示"继续收听"列表） */
-function updateLocalProgress(libraryItemId: string, mediaItemId: string, currentTime: number, duration: number) {
-  const appState = useAppStore.getState();
-  const existing = appState.mediaProgress || [];
-  const idx = existing.findIndex(p => p.libraryItemId === libraryItemId);
-  const entry: ABSProgress = {
-    id: '', userId: '', libraryItemId,
-    episodeId: null, mediaItemId, mediaItemType: 'book',
-    duration, progress: duration > 0 ? currentTime / duration : 0,
-    currentTime, isFinished: false, hideFromContinueListening: false,
-    lastUpdate: Date.now(), startedAt: Date.now(), finishedAt: null,
-  };
-  if (idx >= 0) {
-    const updated = [...existing];
-    updated[idx] = { ...updated[idx], currentTime, progress: duration > 0 ? currentTime / duration : 0, lastUpdate: Date.now() };
-    useAppStore.getState().setMediaProgress(updated);
-  } else {
-    useAppStore.getState().setMediaProgress([...existing, entry]);
-  }
-}
-
 /** 从服务端累计时间反算章节索引和偏移 */
 function resolveChapterFromTime(chapters: PlayerChapter[], totalSeconds: number): { index: number; offset: number } {
   let cum = 0;
@@ -169,146 +155,7 @@ function resolveChapterFromTime(chapters: PlayerChapter[], totalSeconds: number)
 }
 
 // ════════════════════════════════════════
-// ④ Timers（定时子系统）
-// ════════════════════════════════════════
-
-// ---- 4a. 章节看门狗 ----
-
-let wdInterval: ReturnType<typeof setInterval> | null = null;
-
-export function startWatchdog() {
-  stopWatchdog();
-  const audio = getAudio();
-
-  const s = usePlayerStore.getState();
-  const ch = s.chapters[s.currentChapterIndex];
-  playerLog('watchdog', `启动 · 第${s.currentChapterIndex + 1}/${s.chapters.length}章 · ${ch?.title || '?'} · 频率1s`);
-
-  function check() {
-    const s = usePlayerStore.getState();
-    if (!s.currentItem || !s.currentChapter) return;
-
-    const ct = audio.currentTime;
-    const cfg = Config.getBook(s.currentItem.id);
-    const end = s.currentChapter.duration;
-
-    // 片头跳过
-    if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
-      playerLog('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
-      audio.currentTime = cfg.introSeconds;
-      return;
-    }
-
-    // 片尾切章
-    if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {
-      finishOrNext(audio);
-      return;
-    }
-
-    // 自然结束
-    if (ct >= end) finishOrNext(audio);
-  }
-
-  wdInterval = setInterval(() => { if (!audio.paused) check(); }, 1000);
-  check(); // 立即检查一次
-  audio.onended = () => finishOrNext(audio);
-}
-
-function stopWatchdog() {
-  if (wdInterval) { clearInterval(wdInterval); wdInterval = null; playerLog('watchdog', '关闭'); }
-  if (audioEl) audioEl.onended = null;
-}
-
-function finishOrNext(audio: HTMLAudioElement) {
-  const { currentChapterIndex: idx, chapters } = usePlayerStore.getState();
-  if (idx < chapters.length - 1) {
-    playerLog('chapter', `章节切换 · ${idx + 1} → ${idx + 2}`);
-    usePlayerStore.getState().playNextChapter();
-  } else {
-    playerLog('lifecycle', '全书播放完毕');
-    audio.pause();
-    usePlayerStore.setState({ isPlaying: false });
-  }
-}
-
-// ---- 4b. 进度同步 ----
-
-let syncIntervalId: ReturnType<typeof setInterval> | null = null;
-
-function startProgressSync(libId: string, mediaId: string, initialCumulative: number) {
-  const audio = getAudio();
-
-  const s = usePlayerStore.getState();
-  const dur = s.chapters?.[s.currentChapterIndex]?.duration || 0;
-  syncProgress(libId, initialCumulative, dur);
-  updateLocalProgress(libId, mediaId, initialCumulative, dur);
-
-  syncIntervalId = setInterval(() => {
-    const st = usePlayerStore.getState();
-    if (!st.libraryItemId || !st.isPlaying) return;
-    const ct = cumulativeTime(st.chapters, st.currentChapterIndex, audio.currentTime);
-    syncProgress(st.libraryItemId, ct, st.chapters[st.currentChapterIndex]?.duration || 0);
-    updateLocalProgress(st.libraryItemId, st.mediaItemId || '', ct, st.chapters[st.currentChapterIndex]?.duration || 0);
-  }, 15000);
-
-  playerLog('sync', `启动 · 频率15s · 累计${Math.round(initialCumulative)}s`);
-}
-
-function stopProgressSync() {
-  if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; playerLog('sync', '关闭'); }
-}
-
-// ---- 4c. 睡眠定时器 ----
-
-let sleepTimerId: ReturnType<typeof setInterval> | null = null;
-
-function startSleepCountdown() {
-  stopSleepCountdown();
-  const audio = getAudio();
-  const s = usePlayerStore.getState();
-  if (s.sleepTimer) playerLog('sleep', `启动 · ${s.sleepTimer}min(${formatTime(s.sleepTimer * 60)})`);
-
-  sleepTimerId = setInterval(() => {
-    const s = usePlayerStore.getState();
-    if (!s.isPlaying) return;
-    if (s.sleepTimeRemaining !== null) {
-      const remaining = s.sleepTimeRemaining - 1;
-      if (remaining <= 0) {
-        audio.pause();
-        playerLog('sleep', '睡眠定时到 → 暂停');
-        usePlayerStore.setState({ isPlaying: false, sleepTimer: null, sleepTimeRemaining: null });
-        clearInterval(sleepTimerId!);
-        sleepTimerId = null;
-      } else {
-        usePlayerStore.setState({ sleepTimeRemaining: remaining });
-      }
-    }
-  }, 1000);
-}
-
-function stopSleepCountdown() {
-  if (sleepTimerId) { clearInterval(sleepTimerId); sleepTimerId = null; playerLog('sleep', '关闭'); }
-}
-
-/** 秒数 → mm:ss */
-function formatTime(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// ---- 定时任务清理（不含常驻后台事件）----
-
-function cleanupAll() {
-  const hadAny = wdInterval || syncIntervalId || sleepTimerId;
-  stopWatchdog();
-  stopProgressSync();
-  stopSleepCountdown();
-  if (hadAny) playerLog('lifecycle', '全部定时任务已关闭');
-}
-
-// ════════════════════════════════════════
-// ⑤ Chapter Loading
+// ④ Chapter Loading
 // ════════════════════════════════════════
 
 async function loadChapter(index: number): Promise<boolean> {
@@ -320,8 +167,6 @@ async function loadChapter(index: number): Promise<boolean> {
   const rate = s.playbackRate;
 
   playerLog('chapter', `加载章节 ${index + 1}/${s.chapters.length}`, { title: chapter.title });
-
-  stopWatchdog();
 
   const url = getAudioUrl(s.currentItem.id, chapter.ino);
   const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
@@ -342,6 +187,7 @@ async function loadChapter(index: number): Promise<boolean> {
 
   audio.play().catch(() => { usePlayerStore.setState({ isPlaying: false }); });
 
+  // 等待音频就绪（readyState >= 3 或超时）
   const TIMEOUT = 15000;
   const t0 = performance.now();
   let done = false;
@@ -353,12 +199,14 @@ async function loadChapter(index: number): Promise<boolean> {
       audio.removeEventListener('error', onError);
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
       usePlayerStore.setState({ isPlaying: !audio.paused });
-      startWatchdog();
+      // 切章完成 → 通知 Scheduler 重建定时器（章节信息变了）
+      restartTimers();
     } else if (performance.now() - t0 > TIMEOUT) {
       done = true;
       audio.removeEventListener('error', onError);
       playerWarn('chapter', `章节加载超时 · 第${index + 1}章 · readyState=${audio.readyState}`);
-      startWatchdog();
+      // 超时也触发重建
+      restartTimers();
     } else {
       requestAnimationFrame(pollReady);
     }
@@ -368,18 +216,47 @@ async function loadChapter(index: number): Promise<boolean> {
 }
 
 // ════════════════════════════════════════
-// ⑥ Store（Zustand）
+// ⑤ Store（Zustand）
 // ════════════════════════════════════════
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
-  // 初始化后台模块 + 注册常驻事件监听
+  // ── 初始化后台模块 + 定时调度器 ──
   ...(() => {
+    // 1. 后台事件（visibility/pagehide/beforeunload）
     initBackground({
       cumulativeTime,
-      startWatchdog,
       getStore: () => ({ getState: usePlayerStore.getState, setState: usePlayerStore.setState }),
     });
     startBackgroundEvents();
+
+    // 2. 定时任务调度器（状态驱动，自动管理 watchdog/sync/sleep）
+    initSchedulerDeps({
+      getStoreState: () => {
+        const s = usePlayerStore.getState();
+        return {
+          isPlaying: s.isPlaying,
+          currentItem: s.currentItem,
+          chapters: s.chapters,
+          currentChapterIndex: s.currentChapterIndex,
+          currentChapter: s.currentChapter,
+          libraryItemId: s.libraryItemId,
+          mediaItemId: s.mediaItemId,
+          sleepTimer: s.sleepTimer,
+          sleepTimeRemaining: s.sleepTimeRemaining,
+        };
+      },
+      setState: (patch) => set(patch as Partial<PlayerState>),
+      getAudio,
+      cumulativeTime,
+      getBookConfig: (itemId: string) => Config.getBook(itemId),
+      syncProgress: (libId, ct, dur) => {
+        import('../api/audiobookshelf').then(({ syncProgress }) => syncProgress(libId, ct, dur));
+      },
+      log: playerLog as (module: string, msg: string, data?: Record<string, unknown>) => void,
+      warn: playerWarn as (module: string, msg: string, data?: Record<string, unknown>) => void,
+    });
+    initScheduler();
+
     return {};
   })(),
 
@@ -403,7 +280,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   play: async (item) => {
     const audio = getAudio();
-    cleanupAll();
     audio.pause();
     audio.src = '';
 
@@ -460,65 +336,45 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       if (offset > 0) {
         audio.currentTime = Math.min(offset, audio.duration || targetChapter.duration);
       }
+      // ★ 关键：只设置 isPlaying=true，Scheduler 会自动启动所有定时任务
       set({ isPlaying: true });
     }).catch((err) => {
       playerWarn('lifecycle', '播放启动失败', { error: err.message });
       set({ isPlaying: false });
     });
-
-    // 就绪后启动全部子系统
-    const READY_TIMEOUT = 15000;
-    const t0 = performance.now();
-    let settled = false;
-
-    const waitAndStart = () => {
-      if (settled) return;
-      if (audio.readyState >= 3) {
-        settled = true;
-        if (offset > 0) audio.currentTime = Math.min(offset, audio.duration || targetChapter.duration);
-        startWatchdog();
-        startProgressSync(libraryItemId, mediaItemId, cumulative);
-        startSleepCountdown();
-        playerLog('lifecycle', `定时子系统已启动 · readyState=${audio.readyState} · offset=${Math.round(offset)}s`);
-      } else if (performance.now() - t0 > READY_TIMEOUT) {
-        settled = true;
-        if (offset > 0 && audio.duration) audio.currentTime = Math.min(offset, audio.duration);
-        playerWarn('lifecycle', `加载超时，仍启动子系统 · readyState=${audio.readyState}`);
-        startWatchdog();
-        startProgressSync(libraryItemId, mediaItemId, cumulative);
-        startSleepCountdown();
-      } else {
-        requestAnimationFrame(waitAndStart);
-      }
-    };
-    requestAnimationFrame(waitAndStart);
   },
 
-  // ── 播放/暂停/停止 ──
+  // ── 播放/暂停/停止（纯状态操作，不碰定时器）──
 
   pause: () => {
-    restoreGen++;
+    bumpRestoreGen();
     getAudio().pause();
-    cleanupAll();          // 播放停止 → 关闭所有定时检查任务
-    playerLog('lifecycle', '暂停');
+    // ★ 只设置 isPlaying=false，Scheduler 检测到后会自动清理所有定时任务
     set({ isPlaying: false });
+    playerLog('lifecycle', '暂停');
   },
 
   resume: () => {
-    restoreGen++;
-    getAudio().play().then(() => { set({ isPlaying: true }); }).catch(() => {});
+    bumpRestoreGen();
+    getAudio().play()
+      .then(() => {
+        // ★ 只设置 isPlaying=true，Scheduler 检测到后会自动启动所有定时任务
+        set({ isPlaying: true });
+      })
+      .catch(() => {});
     playerLog('lifecycle', '恢复播放');
   },
 
   stop: () => {
-    restoreGen++;
+    bumpRestoreGen();
     const audio = getAudio();
     audio.pause();
     audio.src = '';
-    cleanupAll();
+    // ★ 先设 isPlaying=false 触发 Scheduler 清理定时器，再清空状态
+    set({ isPlaying: false });
     playerLog('lifecycle', '完全停止');
     set({
-      currentItem: null, isPlaying: false,
+      currentItem: null,
       isMiniPlayerVisible: false, isFullPlayerVisible: false,
       libraryItemId: null, mediaItemId: null,
       chapters: [], currentChapter: null, currentChapterIndex: 0,
@@ -559,6 +415,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (idx >= chapters.length - 1) return;
     const next = idx + 1;
     playerLog('chapter', `下一章 · ${idx + 1} → ${next + 1}`);
+    // 切章前先暂停（让 Scheduler 清理旧定时器），再加载新章
+    set({ isPlaying: false });
     await loadChapter(next);
     set({ currentChapterIndex: next, currentChapter: chapters[next], isPlaying: true });
   },
@@ -568,11 +426,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const ct = getAudio().currentTime;
     if (ct > 3) {
       playerLog('chapter', `重播当前章 · 第${idx + 1}章开头`);
+      set({ isPlaying: false });
       await loadChapter(idx);
       getAudio().currentTime = 0;
+      set({ isPlaying: true });
     } else if (idx > 0) {
       const prev = idx - 1;
       playerLog('chapter', `上一章 · ${idx + 1} → ${prev + 1}`);
+      set({ isPlaying: false });
       await loadChapter(prev);
       set({ currentChapterIndex: prev, currentChapter: chapters[prev], isPlaying: true });
     }
@@ -582,6 +443,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { chapters } = get();
     if (index < 0 || index >= chapters.length) return;
     playerLog('chapter', `切换章节 → 第${index + 1}章 · ${chapters[index].title}`);
+    set({ isPlaying: false });
     await loadChapter(index);
     set({ currentChapterIndex: index, currentChapter: chapters[index], isPlaying: true });
   },
@@ -591,9 +453,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setSleepTimer: (m: number | null) => {
     if (m !== null) playerLog('sleep', `设定睡眠定时 · ${m}分钟`);
     set({ sleepTimer: m, sleepTimeRemaining: m ? m * 60 : null });
+    // 如果正在播放且设定了新的 sleepTimer，通知 Scheduler 启动/更新倒计时
+    if (m && usePlayerStore.getState().isPlaying) {
+      restartTimers();
+    }
   },
   clearSleepTimer: () => {
-    playerLog('sleep', '清除睡眠定时器');
+    playerLog('sleep', '清除睡眠定时');
     set({ sleepTimer: null, sleepTimeRemaining: null });
   },
 

@@ -3,36 +3,40 @@
  *
  * 常驻监听：
  *   - visibilitychange → 隐藏时同步进度 / 显示时恢复播放
- *   - pagehide / beforeunload → 页面关闭前最终同步
- *
+ *   - pagehide / beforeunload → 页面关闭前最终同步 *
  * 不负责：
- *   - watchdog / sync / sleep 定时任务 → 由 playerController 按需启停
+ *   - watchdog / sync / sleep 定时任务 → 由 TimerScheduler 根据 isPlaying 状态自动管理
  */
 
-import { syncProgressNow } from '../api/audiobookshelf';
+import { syncProgress as syncProgressNow } from '../api/audiobookshelf';
 import { getAudio } from './playerController';
 import { playerLog, playerWarn } from '../utils/playerLogger';
 
 // ── 延迟导入依赖（避免循环引用）──
 
 let getCumulativeTimeFn: ((chapters: any[], idx: number, t: number) => number) | null = null;
-let startWatchdogFn: (() => void) | null = null;
-let getStore: (() => any) | null = null;
+let getStore: (() => {
+  getState: () => any;
+  setState: (patch: Record<string, unknown>) => void;
+}) | null = null;
 
 /** 由 playerController 初始化时注入依赖 */
 export function initDeps(deps: {
   cumulativeTime: typeof getCumulativeTimeFn;
-  startWatchdog: typeof startWatchdogFn;
   getStore: typeof getStore;
 }) {
   getCumulativeTimeFn = deps.cumulativeTime;
-  startWatchdogFn = deps.startWatchdog;
-  getStore = degetStore;
+  getStore = deps.getStore;
 }
 
 // ── 恢复令牌 ──
 
 export let restoreGen = 0;
+
+/** 递增恢复令牌（防止过期回调覆盖用户操作） */
+export function bumpRestoreGen(): number {
+  return ++restoreGen;
+}
 
 // ── 初始化标志 ──
 
@@ -48,7 +52,8 @@ export function initBackground() {
   // ── 页面关闭前最终同步 ──
   const onFinalSync = () => {
     if (!getCumulativeTimeFn || !getStore) return;
-    const s = getStore();
+    const store = getStore();
+    const s = store.getState();
     if (!s.libraryItemId) return;
     const ct = getCumulativeTimeFn(s.chapters, s.currentChapterIndex, audio.currentTime);
     syncProgressNow(s.libraryItemId, ct, s.chapters[s.currentChapterIndex]?.duration || 0);
@@ -64,7 +69,8 @@ export function initBackground() {
 
     if (document.visibilityState === 'hidden') {
       // 后台：同步当前进度
-      const s = getStore();
+      const store = getStore();
+      const s = store.getState();
       if (s.libraryItemId) {
         const ct = getCumulativeTimeFn(s.chapters, s.currentChapterIndex, audio.currentTime);
         syncProgressNow(s.libraryItemId, ct, s.chapters[s.currentChapterIndex]?.duration || 0);
@@ -83,10 +89,12 @@ export function initBackground() {
 /** iOS 锁屏返回后 audio 被暂停，尝试恢复 */
 function recoverFromBackground(audio: HTMLAudioElement) {
   if (!audio.src) return;
-  if (!getStore) return;
+  const storeFn = getStore;
+  if (!storeFn) return;
+  const store = storeFn();
 
   if (!audio.paused) {
-    getStore().setState({ isPlaying: true });
+    store.setState({ isPlaying: true });
     return;
   }
 
@@ -96,7 +104,7 @@ function recoverFromBackground(audio: HTMLAudioElement) {
 
   if (promise === undefined) {
     if (token !== restoreGen) return;
-    getStore().setState({ isPlaying: true });
+    store.setState({ isPlaying: true });
     return;
   }
 
@@ -109,11 +117,11 @@ function recoverFromBackground(audio: HTMLAudioElement) {
       playerLog('background', `⚠️ currentTime 重置 · ${ctAfter.toFixed(1)}s → ${timeBeforePlay.toFixed(1)}s`);
     }
 
-    getStore().setState({ isPlaying: true });
-    if (startWatchdogFn) startWatchdogFn();
+    // ★ 只设置 isPlaying=true，TimerScheduler 会自动启动所有定时任务
+    store.setState({ isPlaying: true });
   }).catch((err) => {
     if (token !== restoreGen) return;
-    getStore().setState({ isPlaying: false });
+    store.setState({ isPlaying: false });
     playerWarn('background', `恢复播放失败`, { error: (err as Error).message || 'unknown' });
   });
 }

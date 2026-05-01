@@ -6,7 +6,7 @@
  */
 
 export type LogLevel = 'info' | 'warn' | 'error';
-export type LogModule = 'play' | 'chapter' | 'cache' | 'session' | 'sync' | 'background' | 'sleep' | 'system';
+export type LogModule = 'lifecycle' | 'chapter' | 'cache' | 'sync' | 'background' | 'sleep' | 'watchdog' | 'system';
 
 export interface LogEntry {
   id: number;
