@@ -1,21 +1,41 @@
 // ====== Service Worker 生命周期管理 ======
 //
-// 客户端刷新触发方式：
-//   1. 自动 — PWA 检测到新 SW 后自动 skipWaiting + clientsClaim + 页面 reload
-//   2. 手动 — 用户在设置页点击"检查更新"，确认后清除缓存并刷新
+// 更新流程：
+//   1. 自动检测 — PWA 检测到新 SW 时，通过 onNeedRefresh 通知
+//   2. 延迟刷新 — 等待页面稳定后执行 skipWaiting + clientsClaim + reloadPage
+//   3. 手动检查 — 设置页"检查更新"按钮，对比 VERSION 文件
 //
+// 白屏问题根因：
+//   autoUpdate 模式会立即 skipWaiting + reload，但旧页面可能还在用旧缓存资源，
+//   新 SW 接管时资源版本不一致导致白屏。
+//   改为 prompt 模式 + 延迟刷新，确保用户在合适的时机切换。
 
 import { registerSW as registerPWASW } from 'virtual:pwa-register';
 
 const baseUrl = import.meta.env.BASE_URL || '/';
 
-/** 注册 SW，利用 vite-plugin-pwa 的 autoUpdate 自动管理生命周期 */
+let _reloadPage: ((reloadPage?: boolean) => Promise<void>) | null = null;
+
+/** 注册 SW（prompt 模式），检测到更新时延迟自动刷新 */
 export function registerSW() {
   if (!('serviceWorker' in navigator)) return;
 
-  registerPWASW({
+  _reloadPage = registerPWASW({
+    immediate: false,
     onOfflineReady() {
-      console.log('应用已支持离线使用');
+      console.log('[SW] 应用已支持离线使用');
+    },
+    onNeedRefresh() {
+      console.log('[SW] 发现新版本，延迟执行更新');
+      // 延迟刷新：等当前页面操作完成后再切换
+      requestIdleCallback?.(() => _reloadPage?.(true))
+        ?? setTimeout(() => _reloadPage?.(true), 1500);
+    },
+    onRegistered(reg) {
+      console.log('[SW] 已注册', reg?.scope);
+    },
+    onRegisterError(err) {
+      console.error('[SW] 注册失败', err);
     },
   });
 }
