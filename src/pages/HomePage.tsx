@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Headphones, Library, Clock, ChevronRight, Search, Settings } from 'lucide-react';
+import { Headphones, Clock, ChevronRight, Search, Settings } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../store/playerStore';
 import { getRecentlyAdded, getItem, getCoverUrl } from '../api/audiobookshelf';
@@ -9,7 +9,7 @@ import { formatDuration, getAuthorName } from '../utils/helpers';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { libraries, activeLibraryId, setActiveLibrary, mediaProgress } = useAppStore();
+  const { activeLibraryId, mediaProgress } = useAppStore();
   const { play, currentItem } = usePlayerStore();
 
   const [recentItems, setRecentItems] = useState<ABSMediaItem[]>([]);
@@ -76,26 +76,6 @@ export default function HomePage() {
           </div>
         </div>
       </header>
-
-      {/* 库选择 */}
-      <div className="px-5 py-4 overflow-x-auto hide-scrollbar">
-        <div className="flex gap-3">
-          {libraries.map((lib) => (
-            <button
-              key={lib.id}
-              onClick={() => setActiveLibrary(lib.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                activeLibraryId === lib.id
-                  ? 'bg-white text-black'
-                  : 'bg-white/10 text-white hover:bg-white/20'
-              }`}
-            >
-              <Library className="w-4 h-4" />
-              {lib.name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* 继续收听 */}
       {continueItems.length > 0 && (
