@@ -215,7 +215,7 @@ export async function loadChapter(index: number) {
     if (audio.readyState >= 3) {
       // 确保加载完成后速率正确（部分浏览器在 src 变更后重置）
       if (audio.playbackRate !== rate) audio.playbackRate = rate;
-      usePlayerStore.setState({ duration: audio.duration, currentTime: 0, isPlaying: !audio.paused });
+      usePlayerStore.setState({ duration: audio.duration, currentTime: audio.currentTime, isPlaying: !audio.paused });
       const settings = useSkipSettings.getState().getBookSettings(state.currentItem!.id);
       if (settings.autoSkipIntro && settings.introSeconds > 0 && chapter.duration > settings.introSeconds) {
         audio.currentTime = settings.introSeconds;
@@ -391,7 +391,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     if (idx >= chapters.length - 1) return;
     const nextIdx = idx + 1;
     await loadChapter(nextIdx);
-    set({ currentChapterIndex: nextIdx, currentChapter: chapters[nextIdx], duration: chapters[nextIdx].duration, currentTime: 0, isPlaying: true });
+    set({ currentChapterIndex: nextIdx, currentChapter: chapters[nextIdx], duration: chapters[nextIdx].duration, isPlaying: true });
   },
 
   playPreviousChapter: async () => {
@@ -401,7 +401,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     } else if (idx > 0) {
       const prevIdx = idx - 1;
       await loadChapter(prevIdx);
-      set({ currentChapterIndex: prevIdx, currentChapter: chapters[prevIdx], duration: chapters[prevIdx].duration, currentTime: 0, isPlaying: true });
+      set({ currentChapterIndex: prevIdx, currentChapter: chapters[prevIdx], duration: chapters[prevIdx].duration, isPlaying: true });
     }
   },
 
