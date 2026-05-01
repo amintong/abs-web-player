@@ -75,7 +75,7 @@ function SeekBar({ currentTime, duration, progress, onSeek }: {
       <input
         type="range" min={0} max={duration || 100} step={1} value={currentTime}
         onChange={(e) => onSeek(parseFloat(e.target.value))}
-        className="w-full h-1 rounded-full appearance-none cursor-pointer"
+        className="w-full h-1 rounded-full appearance-none cursor-pointer seek-bar"
         style={{ background: `linear-gradient(to right, #8b5cf6 ${progress}%, rgba(255,255,255,0.2) ${progress}%)` }}
       />
       <div className="flex justify-between mt-2 text-xs text-gray-400">
