@@ -7,13 +7,12 @@
  */
 
 import { MediaServer } from '../adapters';
-import type { ABSMediaItem, ABSLibrary, ABSUser } from '../types';
 
 // ── 认证 ──
 
-export async function login(server: string, username: string, password: string): Promise<{ user: ABSUser }> {
+export async function login(server: string, username: string, password: string): Promise<{ user: any }> {
   const user = await MediaServer.current.login(server, username, password);
-  return { user: user.raw as ABSUser };
+  return { user: user.raw || user };
 }
 
 export function logout(): void {
@@ -21,53 +20,29 @@ export function logout(): void {
   MediaServer.clearAdapter();
 }
 
-export async function getCurrentUser(): Promise<ABSUser> {
+export async function getCurrentUser(): Promise<any> {
   const user = await MediaServer.current.validateSession();
-  return user.raw as ABSUser;
+  return user.raw || user;
 }
 
 // ── 库 ──
 
-export async function getLibraries(): Promise<ABSLibrary[]> {
-  const response = await fetch(`${MediaServer.current.serverUrl}/api/libraries`, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${localStorage.getItem('abs_token') || ''}`,
-    },
-  });
-  if (!response.ok) throw new Error(`API 请求失败: ${response.status}`);
-  const data = await response.json();
-  return data.libraries;
+export async function getLibraries(): Promise<any[]> {
+  return MediaServer.current.getLibraries();
 }
 
-export async function getLibraryItems(libraryId: string, sortBy = 'media.metadata.title', limit = 100): Promise<ABSMediaItem[]> {
-  const response = await fetch(
-    `${MediaServer.current.serverUrl}/api/libraries/${libraryId}/items?sort=${sortBy}&limit=${limit}`,
-    { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('abs_token') || ''}` } }
-  );
-  if (!response.ok) throw new Error(`API 请求失败: ${response.status}`);
-  const data = await response.json();
-  return data.results;
+export async function getLibraryItems(libraryId: string, _sortBy = '', limit = 100): Promise<any[]> {
+  return MediaServer.current.getLibraryItems(libraryId, { limit });
 }
 
-export async function getRecentlyAdded(libraryId: string, limit = 20): Promise<ABSMediaItem[]> {
-  const response = await fetch(
-    `${MediaServer.current.serverUrl}/api/libraries/${libraryId}/items?sort=addedAt&desc=1&limit=${limit}`,
-    { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('abs_token') || ''}` } }
-  );
-  if (!response.ok) throw new Error(`API 请求失败: ${response.status}`);
-  const data = await response.json();
-  return data.results;
+export async function getRecentlyAdded(libraryId: string, limit = 20): Promise<any[]> {
+  return MediaServer.current.getRecentlyAdded(libraryId, limit);
 }
 
 // ── 媒体 ──
 
-export async function getItem(itemId: string): Promise<ABSMediaItem> {
-  const response = await fetch(`${MediaServer.current.serverUrl}/api/items/${itemId}`, {
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('abs_token') || ''}` },
-  });
-  if (!response.ok) throw new Error(`API 请求失败: ${response.status}`);
-  return response.json();
+export async function getItem(itemId: string): Promise<any> {
+  return MediaServer.current.getItem(itemId);
 }
 
 export function getAudioUrl(itemId: string, trackId: string): string {

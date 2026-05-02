@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { registerSW } from './sw';
 import { initPlayerModules } from './controller/playerController';
-import { MediaServer, AudiobookshelfAdapter } from './adapters';
+import { MediaServer, AudiobookshelfAdapter, EmbyAdapter } from './adapters';
 import './index.css';
 
 const baseUrl = import.meta.env.BASE_URL || '/';
@@ -50,10 +50,13 @@ if (window.visualViewport) {
 }
 
 // 恢复上次连接的后端适配器（如果有保存的 token）
-if (localStorage.getItem('abs_token')) {
-  const adapter = new AudiobookshelfAdapter();
-  MediaServer.setAdapter(adapter);
-  MediaServer.saveServerType('audiobookshelf');
+const savedType = localStorage.getItem('abs_server_type');
+if (localStorage.getItem('abs_token') || localStorage.getItem('emby_token')) {
+  if (savedType === 'emby') {
+    MediaServer.setAdapter(new EmbyAdapter());
+  } else {
+    MediaServer.setAdapter(new AudiobookshelfAdapter());
+  }
 }
 
 registerSW();

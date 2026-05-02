@@ -2,12 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { Headphones, History, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { login, getLibraries, getCurrentUser } from '../api/audiobookshelf';
-import { MediaServer, AudiobookshelfAdapter } from '../adapters';
+import { MediaServer, AudiobookshelfAdapter, EmbyAdapter } from '../adapters';
 import type { ServerType } from '../adapters';
 
 const SERVER_TYPE_OPTIONS: { value: ServerType; label: string; available: boolean }[] = [
   { value: 'audiobookshelf', label: 'Audiobookshelf', available: true },
-  { value: 'emby', label: 'Emby (即将支持)', available: false },
+  { value: 'emby', label: 'Emby', available: true },
   { value: 'plex', label: 'Plex (即将支持)', available: false },
 ];
 
@@ -173,7 +173,11 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       // 根据后端类型注册适配器
-      if (serverType === 'audiobookshelf') {
+      if (serverType === 'emby') {
+        const adapter = new EmbyAdapter();
+        MediaServer.setAdapter(adapter);
+        MediaServer.saveServerType('emby');
+      } else {
         const adapter = new AudiobookshelfAdapter();
         MediaServer.setAdapter(adapter);
         MediaServer.saveServerType('audiobookshelf');
