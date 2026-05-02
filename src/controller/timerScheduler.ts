@@ -146,14 +146,14 @@ function startAllTimers() {
 
       // 片头跳过
       if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
-        d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
+        d.log('chapter', `片头跳过 · ct=${ct.toFixed(1)}s → ${cfg.introSeconds}s · 章节时长${end.toFixed(1)}s`);
         audio.currentTime = cfg.introSeconds;
         return;
       }
 
       // 片尾切章
       if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {
-        d.log('watchdog', `片尾触发 · ct=${ct.toFixed(1)}s >= end-outro=${(end - cfg.outroSeconds).toFixed(1)}s`);
+        d.log('watchdog', `片尾触发 · ct=${ct.toFixed(1)}s · 章节时长${end.toFixed(1)}s · 片尾${cfg.outroSeconds}s · 触发点${(end - cfg.outroSeconds).toFixed(1)}s`);
         if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
         finishOrNext(audio);
         return;
@@ -161,7 +161,7 @@ function startAllTimers() {
 
       // 自然结束
       if (ct >= end) {
-        d.log('watchdog', `自然结束触发 · ct=${ct.toFixed(1)}s >= end=${end.toFixed(1)}s`);
+        d.log('watchdog', `自然结束 · ct=${ct.toFixed(1)}s · 章节时长${end.toFixed(1)}s`);
         if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
         finishOrNext(audio);
         return;

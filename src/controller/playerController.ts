@@ -231,12 +231,13 @@ async function loadChapter(index: number): Promise<boolean> {
 
   // 音频就绪后立即跳过片头（不等 watchdog，锁屏下也保证执行）
   const itemId = usePlayerStore.getState().currentItem?.id;
+  const chapterDuration = usePlayerStore.getState().currentChapter?.duration || audio.duration || 0;
   if (itemId) {
     const cfg = Config.getBook(itemId);
     const ct = audio.currentTime;
-    playerLog('chapter', `就绪后状态 · ct=${ct.toFixed(1)}s readyState=${audio.readyState} autoSkipIntro=${cfg.autoSkipIntro} introSec=${cfg.introSeconds}`);
+    playerLog('chapter', `就绪状态 · ct=${ct.toFixed(1)}s · 章节时长${chapterDuration.toFixed(1)}s · 片头${cfg.introSeconds}s(${cfg.autoSkipIntro ? '开' : '关'}) · 片尾${cfg.outroSeconds}s(${cfg.autoSkipOutro ? '开' : '关'})`);
     if (cfg.autoSkipIntro && cfg.introSeconds > 0) {
-      playerLog('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
+      playerLog('chapter', `片头跳过 · ct=${ct.toFixed(1)}s → ${cfg.introSeconds}s · 章节时长${chapterDuration.toFixed(1)}s`);
       audio.currentTime = cfg.introSeconds;
     }
   } else {
