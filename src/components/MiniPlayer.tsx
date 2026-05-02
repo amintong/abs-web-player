@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { usePlayerStore } from '../controller/playerController';
 import { getCoverUrl } from '../api/audiobookshelf';
-import { getAuthorName } from '../utils/helpers';
+import { getAuthorName, getTitle } from '../utils/helpers';
 import { Config } from '../utils/configManager';
 import { useAudioTime } from '../hooks/useAudioTime';
 import { playerLog } from '../utils/playerLogger';
@@ -41,7 +41,7 @@ function TrackInfo() {
   if (!currentItem) return null;
   return (
     <button onClick={() => navigate('/player')} className="MiniPlayer-info flex-1 text-left min-w-0">
-      <p className="text-white font-medium text-sm truncate">{currentItem.media?.metadata?.title}</p>
+      <p className="text-white font-medium text-sm truncate">{getTitle(currentItem)}</p>
       <p className="text-gray-400 text-xs truncate">{getAuthorName(currentItem)}</p>
     </button>
   );
@@ -111,7 +111,7 @@ export default function MiniPlayer() {
 
       {/* 内容区（安全区 padding 已在外层处理） */}
       <div className="MiniPlayer-body flex items-center gap-3 px-4 py-3">
-        <CoverArt itemId={currentItem.id} title={currentItem.media?.metadata?.title} />
+        <CoverArt itemId={currentItem.id} title={getTitle(currentItem)} />
         <TrackInfo />
         <TransportControls />
       </div>

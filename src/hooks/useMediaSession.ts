@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '../controller/playerController';
 import { getCoverUrl } from '../api/audiobookshelf';
-import { getAuthorName } from '../utils/helpers';
+import { getAuthorName, getTitle } from '../utils/helpers';
 import { Config } from '../utils/configManager';
 
 export function useMediaSession() {
@@ -23,9 +23,9 @@ export function useMediaSession() {
 
     const metadata = currentItem
       ? new MediaMetadata({
-          title: currentItem.media?.metadata?.title || 'Unknown',
+          title: getTitle(currentItem) || 'Unknown',
           artist: getAuthorName(currentItem),
-          album: currentItem.media?.metadata?.title || '',
+          album: getTitle(currentItem) || '',
           artwork: [
             { src: getCoverUrl(currentItem.id), sizes: '512x512', type: 'image/jpeg' },
           ],

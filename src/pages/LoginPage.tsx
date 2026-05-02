@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Headphones, History, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { login, getLibraries, getCurrentUser } from '../api/audiobookshelf';
+import { login, getLibraries, validateSession } from '../api/audiobookshelf';
 import { MediaServer, AudiobookshelfAdapter, EmbyAdapter } from '../adapters';
 import type { ServerType } from '../adapters';
 
@@ -133,7 +133,7 @@ Access-Control-Allow-Credentials: true`}</pre>
 }
 
 export default function LoginPage() {
-  const { isAuthenticated, setUser, setLibraries, setMediaProgress, setActiveLibrary } = useAppStore();
+  const { isAuthenticated, setUser, setLibraries, setActiveLibrary } = useAppStore();
   const navRef = useRef(false);
 
   // 当前已保存的配置
@@ -144,7 +144,6 @@ export default function LoginPage() {
   const [server, setServer] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [libraryName, setLibraryName] = useState('');
   const [serverType, setServerType] = useState<ServerType>('audiobookshelf');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -153,6 +152,7 @@ export default function LoginPage() {
   // 库选择步骤
   const [showLibraryPicker, setShowLibraryPicker] = useState(false);
   const [availableLibraries, setAvailableLibraries] = useState<any[]>([]);
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
   const savedConfigs = getSavedConfigs();
 
@@ -163,12 +163,13 @@ export default function LoginPage() {
     async function tryAutoLogin() {
       if (savedServer && localStorage.getItem('abs_token')) {
         try {
-          const user = await getCurrentUser();
-          setUser(user);
-          if (user.mediaProgress) setMediaProgress(user.mediaProgress);
+          const user = await validateSession();
           const libs = await getLibraries();
-          setLibraries(libs);
-          navRef.current = true;
+
+          setPendingUser(user);
+          setAvailableLibraries(libs);
+          setShowLibraryPicker(true);
+          setIsAutoLogin(false);
           return;
         } catch {
           // token 失效，继续显示登录页
@@ -185,14 +186,13 @@ export default function LoginPage() {
     tryAutoLogin();
   }, []);
 
-  // 已认证且不在选库步骤 → 不显示登录页
+  // 已认证且库已选 → 不显示登录页
   if (isAuthenticated && !showLibraryPicker) return null;
 
-  const handleLogin = async (srv?: string, usr?: string, pwd?: string, targetLibraryId?: string, targetLibraryName?: string) => {
+  const handleLogin = async (srv?: string, usr?: string, pwd?: string) => {
     const s = srv || server;
     const u = usr || username;
     const p = pwd || password;
-    const libNameInput = targetLibraryName || libraryName;
     if (!s || !u || !p) { setError('请填写完整的登录信息'); return; }
 
     setError('');
@@ -209,35 +209,15 @@ export default function LoginPage() {
         MediaServer.saveServerType('audiobookshelf');
       }
 
-      const { user } = await login(s, u, p);
-      if (user.mediaProgress) setMediaProgress(user.mediaProgress);
+      const user = await login(s, u, p);
 
       const libs = await getLibraries();
 
-      // 匹配库：先按 id 匹配（历史记录），再按名字匹配（输入框）
-      let matchedLib = targetLibraryId ? libs.find((l: any) => l.id === targetLibraryId) : null;
-      if (!matchedLib && libNameInput) {
-        matchedLib = libs.find((l: any) => l.name === libNameInput || l.name.includes(libNameInput));
-      }
-
-      if (matchedLib) {
-        setUser(user);
-        setLibraries(libs);
-        setActiveLibrary(matchedLib.id);
-        saveConfig(s, u, p, matchedLib.id, matchedLib.name, serverType);
-      } else if (libs.length === 1) {
-        // 单库：直接进入
-        setUser(user);
-        setLibraries(libs);
-        setActiveLibrary(libs[0].id);
-        saveConfig(s, u, p, libs[0].id, libs[0].name, serverType);
-      } else {
-        // 多库且未指定/不存在：弹出选择
-        setAvailableLibraries(libs);
-        setShowLibraryPicker(true);
-        setUser(user);
-        saveConfig(s, u, p);
-      }
+      // 登录成功后一律弹出库选择
+      setPendingUser(user);
+      setAvailableLibraries(libs);
+      setShowLibraryPicker(true);
+      saveConfig(s, u, p, undefined, undefined, serverType);
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
     } finally {
@@ -249,6 +229,7 @@ export default function LoginPage() {
   const handleSelectLibrary = (libraryId: string) => {
     const libs = availableLibraries;
     const selectedLib = libs.find((l: any) => l.id === libraryId);
+    if (pendingUser) setUser(pendingUser);
     setLibraries(libs);
     setActiveLibrary(libraryId);
     setShowLibraryPicker(false);
@@ -263,12 +244,7 @@ export default function LoginPage() {
     setServer(cfg.server);
     setUsername(cfg.username);
     setPassword(pwd);
-    setLibraryName(cfg.libraryName || '');
     if (cfg.serverType) setServerType(cfg.serverType);
-    // 直接登录，带上保存的 libraryId 和 libraryName
-    if (pwd) {
-      handleLogin(cfg.server, cfg.username, pwd, cfg.libraryId, cfg.libraryName);
-    }
   };
 
   const clearHistory = () => {
@@ -379,14 +355,6 @@ export default function LoginPage() {
               placeholder="密码"
               className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
               required />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">媒体库 <span className="text-gray-500 font-normal">(可选)</span></label>
-            <input type="text" value={libraryName}
-              onChange={(e) => setLibraryName(e.target.value)}
-              placeholder="留空则登录后选择"
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
-            />
           </div>
 
           <button type="submit" disabled={isLoading}

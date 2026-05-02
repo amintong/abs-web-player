@@ -54,7 +54,9 @@ interface ABSRawMediaItem {
     metadata?: {
       title?: string;
       authorName?: string;
+      authors?: Array<{ name: string }>;
       narratorName?: string;
+      narrators?: Array<{ name: string }>;
       description?: string;
     };
     chapters?: Array<{
@@ -342,12 +344,18 @@ export class AudiobookshelfAdapter implements IMediaServerAdapter {
 
     const totalDuration = chapters.reduce((sum, ch) => sum + ch.duration, 0) || media?.duration || 0;
 
+    const meta = media?.metadata;
+    const author = meta?.authorName
+      || (meta?.authors?.length ? meta.authors.map(a => a.name).join(', ') : undefined);
+    const narrator = meta?.narratorName
+      || (meta?.narrators?.length ? meta.narrators.map(n => n.name).join(', ') : undefined);
+
     return {
       id: raw.id,
-      title: media?.metadata?.title || '',
-      author: media?.metadata?.authorName,
-      narrator: media?.metadata?.narratorName,
-      description: media?.metadata?.description,
+      title: meta?.title || '',
+      author,
+      narrator,
+      description: meta?.description,
       coverUrl: this.getCoverUrl(raw.id),
       duration: totalDuration,
       chapters,

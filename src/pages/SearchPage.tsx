@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { getLibraryItems, getCoverUrl } from '../api/audiobookshelf';
-import { ABSMediaItem } from '../types';
-import { formatDuration, getAuthorName } from '../utils/helpers';
+import { formatDuration, getAuthorName, getTitle, getDuration, getNarrator } from '../utils/helpers';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -38,17 +37,17 @@ function SearchBar({ query, onChange, onClear, onBack }: {
 }
 
 /** 搜索结果行项 */
-function SearchResultItem({ item }: { item: ABSMediaItem }) {
+function SearchResultItem({ item }: { item: any }) {
   const navigate = useNavigate();
   return (
     <button onClick={() => navigate(`/item/${item.id}`)} className="Search-resultItem w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10">
       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-        <img src={getCoverUrl(item.id)} alt={item.media?.metadata?.title ?? ''} className="w-full h-full object-cover" />
+        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
-        <h3 className="text-white font-medium truncate">{item.media?.metadata?.title}</h3>
+        <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>
         <p className="text-sm text-gray-400 truncate">{getAuthorName(item)}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{formatDuration(item.media?.duration || 0)}</p>
+        <p className="text-xs text-gray-500 mt-0.5">{formatDuration(getDuration(item))}</p>
       </div>
     </button>
   );
@@ -71,9 +70,9 @@ export default function SearchPage() {
   const { activeLibraryId } = useAppStore();
 
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<ABSMediaItem[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [allItems, setAllItems] = useState<ABSMediaItem[]>([]);
+  const [allItems, setAllItems] = useState<any[]>([]);
 
   const handleSearch = async (q: string) => {
     setQuery(q);
@@ -91,9 +90,9 @@ export default function SearchPage() {
 
     const qLower = q.toLowerCase();
     setResults(items.filter((item) =>
-      (item.media?.metadata?.title || '').toLowerCase().includes(qLower) ||
-      (item.media?.metadata?.authorName || '').toLowerCase().includes(qLower) ||
-      (item.media?.metadata?.narratorName || '').toLowerCase().includes(qLower)
+      getTitle(item).toLowerCase().includes(qLower) ||
+      getAuthorName(item).toLowerCase().includes(qLower) ||
+      getNarrator(item).toLowerCase().includes(qLower)
     ));
   };
 

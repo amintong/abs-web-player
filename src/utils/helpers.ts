@@ -51,70 +51,44 @@ export function parseSkipTime(timeStr: string | number | undefined): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-/** 统一获取作者名：兼容 ABSMediaItem（嵌套）和 MediaItem（扁平）两种结构 */
+/** 获取作者名 */
 export function getAuthorName(item: any): string {
-  if (!item) {
-    console.warn('[getAuthorName] item 为空');
-    return 'Unknown Author';
-  }
-
-  // 新结构（MediaItem 扁平）
-  if (item.author) return item.author;
-
-  // 旧结构（ABSMediaItem 嵌套）
-  if (item.media?.metadata) {
-    const meta = item.media.metadata;
-    if (meta.authorName) return meta.authorName;
-    if (meta.authors && meta.authors.length > 0) {
-      return meta.authors.map((a: any) => a.name).join(', ');
-    }
-  }
-
-  console.warn('[getAuthorName] 未找到作者信息', { id: item.id, title: item.title || item.media?.metadata?.title, keys: Object.keys(item).slice(0, 10) });
-  return 'Unknown Author';
+  if (!item) return '';
+  return item.author || '';
 }
 
-/** 统一获取标题：兼容新旧结构 */
+/** 获取标题 */
 export function getTitle(item: any): string {
-  if (!item) { console.warn('[getTitle] item 为空'); return ''; }
-  if (item.title) return item.title;
-  if (item.media?.metadata?.title) return item.media.metadata.title;
-  console.warn('[getTitle] 未找到标题', { id: item.id, keys: Object.keys(item).slice(0, 10) });
-  return item.Name || '';
+  if (!item) return '';
+  return item.title || '';
 }
 
-/** 统一获取描述 */
+/** 获取描述 */
 export function getDescription(item: any): string {
   if (!item) return '';
-  return item.description || item.media?.metadata?.description || item.Overview || '';
+  return item.description || '';
 }
 
-/** 统一获取时长 */
+/** 获取时长（秒） */
 export function getDuration(item: any): number {
   if (!item) return 0;
-  if (typeof item.duration === 'number') return item.duration;
-  if (item.media?.duration) return item.media.duration;
-  return 0;
+  return typeof item.duration === 'number' ? item.duration : 0;
 }
 
-/** 统一获取章节列表 */
+/** 获取章节列表 */
 export function getChapters(item: any): any[] {
   if (!item) return [];
-  if (item.chapters?.length) return item.chapters;
-  if (item.media?.chapters?.length) return item.media.chapters;
-  return [];
+  return item.chapters || [];
 }
 
-/** 统一获取音频文件数 */
+/** 获取章节/音频文件数 */
 export function getAudioFileCount(item: any): number {
   if (!item) return 0;
-  if (item.chapters?.length) return item.chapters.length;
-  if (item.media?.audioFiles?.length) return item.media.audioFiles.length;
-  return 0;
+  return item.chapters?.length || 0;
 }
 
-/** 统一获取旁白者 */
+/** 获取旁白者 */
 export function getNarrator(item: any): string {
   if (!item) return '';
-  return item.narrator || item.media?.metadata?.narratorName || '';
+  return item.narrator || '';
 }

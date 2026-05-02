@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppStore } from './store/appStore';
 import { useMediaSession } from './hooks/useMediaSession';
-import { getCurrentUser, getLibraries } from './api/audiobookshelf';
+import { validateSession, getLibraries } from './api/audiobookshelf';
 
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
@@ -16,7 +16,7 @@ import MiniPlayer from './components/MiniPlayer';
 import DebugMode, { DebugTag } from './components/DebugOverlay';
 
 function ProtectedRoutes() {
-  const { isAuthenticated, setLibraries, setMediaProgress } = useAppStore();
+  const { isAuthenticated, setLibraries } = useAppStore();
   useMediaSession();
 
   const fetched = useRef(false);
@@ -25,8 +25,7 @@ function ProtectedRoutes() {
     fetched.current = true;
     (async () => {
       try {
-        const user = await getCurrentUser();
-        if (user.mediaProgress) setMediaProgress(user.mediaProgress);
+        await validateSession();
         const libs = await getLibraries();
         setLibraries(libs);
       } catch { /* 使用 persist 数据 */ }

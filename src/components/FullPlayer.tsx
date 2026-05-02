@@ -3,7 +3,7 @@ import { Play, Pause, SkipBackIcon, SkipForwardIcon, Volume2, VolumeX, Moon, Che
 import { usePlayerStore } from '../controller/playerController';
 import { useSkipSettings } from '../store/skipSettingsStore';
 import { getCoverUrl } from '../api/audiobookshelf';
-import { formatTime } from '../utils/helpers';
+import { formatTime, getTitle } from '../utils/helpers';
 import { useAudioTime } from '../hooks/useAudioTime';
 import Slider from './Slider';
 
@@ -79,7 +79,7 @@ export default function FullPlayer() {
       {/* 封面 */}
       <div className="flex-1 flex flex-col items-center justify-center px-12 pt-4 pb-8">
         <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
-          <img src={getCoverUrl(currentItem.id)} alt={currentItem.media?.metadata?.title} className="w-full h-full object-cover" />
+          <img src={getCoverUrl(currentItem.id)} alt={getTitle(currentItem)} className="w-full h-full object-cover" />
         </div>
       </div>
 

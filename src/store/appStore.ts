@@ -1,19 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ABSUser, ABSLibrary, ABSProgress } from '../types';
+import type { Library, UserInfo } from '../adapters/interface';
 
 interface AppState {
-  user: ABSUser | null;
+  user: UserInfo | null;
   isAuthenticated: boolean;
-  libraries: ABSLibrary[];
-  mediaProgress: ABSProgress[];
+  libraries: Library[];
   activeLibraryId: string | null;
   debugMode: boolean;
 
-  setUser: (user: ABSUser | null) => void;
+  setUser: (user: UserInfo | null) => void;
   setIsAuthenticated: (val: boolean) => void;
-  setLibraries: (libraries: ABSLibrary[]) => void;
-  setMediaProgress: (progress: ABSProgress[]) => void;
+  setLibraries: (libraries: Library[]) => void;
   setActiveLibrary: (libraryId: string | null) => void;
   setDebugMode: (val: boolean) => void;
   logout: () => void;
@@ -25,7 +23,6 @@ export const useAppStore = create<AppState>()(
       user: null,
       isAuthenticated: false,
       libraries: [],
-      mediaProgress: [],
       activeLibraryId: null,
       debugMode: false,
 
@@ -34,7 +31,6 @@ export const useAppStore = create<AppState>()(
 
       setLibraries: (libraries) => {
         set((state) => {
-          // 如果之前选的库仍在列表中，保留；否则默认第一个
           const stillExists = state.activeLibraryId && libraries.some(l => l.id === state.activeLibraryId);
           return {
             libraries,
@@ -43,14 +39,12 @@ export const useAppStore = create<AppState>()(
         });
       },
 
-      setMediaProgress: (mediaProgress) => set({ mediaProgress }),
-
       setActiveLibrary: (libraryId) => set({ activeLibraryId: libraryId }),
 
       setDebugMode: (debugMode) => set({ debugMode }),
 
       logout: () => set({
-        user: null, isAuthenticated: false, libraries: [], mediaProgress: [], activeLibraryId: null,
+        user: null, isAuthenticated: false, libraries: [], activeLibraryId: null,
       }),
     }),
     {
@@ -59,7 +53,6 @@ export const useAppStore = create<AppState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         libraries: state.libraries,
-        mediaProgress: state.mediaProgress,
         activeLibraryId: state.activeLibraryId,
       }),
     }

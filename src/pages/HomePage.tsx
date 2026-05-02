@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Headphones, Clock, ChevronRight, Search, Settings } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
-import { getRecentlyAdded, getItem, getCoverUrl, getCurrentUser } from '../api/audiobookshelf';
-import { ABSMediaItem, ABSProgress } from '../types';
-import { formatDuration, getAuthorName } from '../utils/helpers';
+import { getRecentlyAdded, getItem, getCoverUrl, getUserProgress } from '../api/audiobookshelf';
+import { formatDuration, getAuthorName, getTitle, getDuration } from '../utils/helpers';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -35,30 +34,31 @@ function PageHeader() {
 
 /** 继续收听卡片 — 封面 + 进度条 + 标题 */
 function ContinueCard({ progress, item, onPlay }: {
-  progress: ABSProgress;
-  item: ABSMediaItem;
+  progress: { progress: number };
+  item: any;
   onPlay: () => void;
 }) {
+  const title = getTitle(item);
   return (
     <button onClick={onPlay} className="ContinueCard flex-shrink-0 w-36 group">
       <div className="ContinueCard-cover relative aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-gray-800">
-        <img src={getCoverUrl(item.id)} alt={item.media?.metadata?.title ?? ''} className="w-full h-full object-cover" />
+        <img src={getCoverUrl(item.id)} alt={title} className="w-full h-full object-cover" />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
           <div className="h-full bg-purple-500" style={{ width: `${progress.progress * 100}%` }} />
         </div>
       </div>
       <h3 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">
-        {item.media?.metadata?.title}
+        {title}
       </h3>
-      <p className="text-xs text-gray-400 truncate">{getAuthorName(item)}</p>
+      {getAuthorName(item) && <p className="text-xs text-gray-400 truncate">{getAuthorName(item)}</p>}
     </button>
   );
 }
 
 /** 继续收听区块 */
 function ContinueListening({ items, onPlay }: {
-  items: { progress: ABSProgress; item: ABSMediaItem }[];
-  onPlay: (item: ABSMediaItem) => void;
+  items: { progress: { progress: number }; item: any }[];
+  onPlay: (item: any) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -82,7 +82,7 @@ function ContinueListening({ items, onPlay }: {
 
 /** 最近添加的行项 */
 function MediaItemRow({ item, onClick }: {
-  item: ABSMediaItem;
+  item: any;
   onClick: () => void;
 }) {
   return (
@@ -91,12 +91,12 @@ function MediaItemRow({ item, onClick }: {
       className="MediaItemRow w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10"
     >
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-        <img src={getCoverUrl(item.id)} alt={item.media?.metadata?.title ?? ''} className="w-full h-full object-cover" />
+        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
-        <h3 className="text-white font-medium truncate">{item.media?.metadata?.title}</h3>
+        <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>
         <p className="text-sm text-gray-400 truncate">{getAuthorName(item)}</p>
-        <p className="text-xs text-gray-500 mt-1">{formatDuration(item.media?.duration || 0)}</p>
+        <p className="text-xs text-gray-500 mt-1">{formatDuration(getDuration(item))}</p>
       </div>
       <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
     </button>
@@ -114,7 +114,7 @@ function LoadingSpinner() {
 
 /** 最近添加区块 */
 function RecentlyAdded({ items, isLoading, libraryId }: {
-  items: ABSMediaItem[];
+  items: any[];
   isLoading: boolean;
   libraryId: string;
 }) {
@@ -155,18 +155,32 @@ function RecentlyAdded({ items, isLoading, libraryId }: {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { activeLibraryId, mediaProgress, setMediaProgress } = useAppStore();
+  const { activeLibraryId } = useAppStore();
   const { play, currentItem } = usePlayerStore();
 
-  const [recentItems, setRecentItems] = useState<ABSMediaItem[]>([]);
-  const [continueItems, setContinueItems] = useState<{ progress: ABSProgress; item: ABSMediaItem }[]>([]);
+  const [recentItems, setRecentItems] = useState<any[]>([]);
+  const [continueItems, setContinueItems] = useState<{ progress: { progress: number }; item: any }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 进入主页时从服务端刷新最新进度
+  // 进入主页时从服务端刷新进度并构建"继续收听"列表
   useEffect(() => {
-    getCurrentUser()
-      .then(user => { if (user.mediaProgress) setMediaProgress(user.mediaProgress); })
+    let cancelled = false;
+    getUserProgress()
+      .then(async (progressList) => {
+        if (cancelled) return;
+        const withTime = progressList.filter(p => p.currentTime > 0);
+        const items = await Promise.all(
+          withTime.slice(0, 10).map(async (p) => {
+            try {
+              const item = await getItem(p.itemId);
+              return { progress: p, item };
+            } catch { return null; }
+          })
+        );
+        if (!cancelled) setContinueItems(items.filter(Boolean) as { progress: { progress: number }; item: any }[]);
+      })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   // 最近添加 — 只在切换库时加载一次
@@ -181,24 +195,7 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [activeLibraryId]);
 
-  // 继续收听 — mediaProgress 变化时刷新
-  useEffect(() => {
-    if (!mediaProgress || mediaProgress.length === 0) { setContinueItems([]); return; }
-
-    const progress = mediaProgress.filter(p => p.currentTime > 0);
-    let cancelled = false;
-    Promise.all(
-      progress.slice(0, 10).map(async (p) => {
-        try {
-          const item = await getItem(p.libraryItemId);
-          return { progress: p, item };
-        } catch { return null; }
-      })
-    ).then(items => { if (!cancelled) setContinueItems(items.filter(Boolean) as { progress: ABSProgress; item: ABSMediaItem }[]); });
-    return () => { cancelled = true; };
-  }, [mediaProgress]);
-
-  const handlePlayItem = (item: ABSMediaItem) => {
+  const handlePlayItem = (item: any) => {
     if (currentItem?.id === item.id) {
       navigate('/player');
     } else {

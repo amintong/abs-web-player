@@ -149,12 +149,12 @@ export class EmbyAdapter implements IMediaServerAdapter {
   async getLibraryItems(libraryId: string, options?: ListOptions): Promise<MediaItem[]> {
     const params = new URLSearchParams({
       ParentId: libraryId,
-      IncludeItemTypes: 'AudioBook,Audio',
+      IncludeItemTypes: 'AudioBook',
       Recursive: 'true',
       SortBy: options?.sortBy || 'SortName',
       SortOrder: options?.sortDesc ? 'Descending' : 'Ascending',
       Limit: String(options?.limit || 100),
-      Fields: 'Overview,Chapters',
+      Fields: 'Overview,Chapters,Artists,AlbumArtist',
     });
     if (options?.offset) params.set('StartIndex', String(options.offset));
 
@@ -164,7 +164,22 @@ export class EmbyAdapter implements IMediaServerAdapter {
     );
     if (!response.ok) throw new Error(`获取列表失败: ${response.status}`);
     const data = await response.json();
-    return (data.Items || []).map((item: any) => this.convertMediaItem(item));
+    let items: MediaItem[] = (data.Items || []).map((item: any) => this.convertMediaItem(item));
+
+    // 如果没有 AudioBook 类型结果，fallback 查 Audio（某些 Emby 库配置不同）
+    if (items.length === 0) {
+      params.set('IncludeItemTypes', 'Audio');
+      const fallback = await fetch(
+        `${this._serverUrl}/Users/${this._userId}/Items?${params}`,
+        { headers: this.headers() }
+      );
+      if (fallback.ok) {
+        const fbData = await fallback.json();
+        items = (fbData.Items || []).map((item: any) => this.convertMediaItem(item));
+      }
+    }
+
+    return items;
   }
 
   async getRecentlyAdded(libraryId: string, limit = 20): Promise<MediaItem[]> {
@@ -175,10 +190,10 @@ export class EmbyAdapter implements IMediaServerAdapter {
     const params = new URLSearchParams({
       ParentId: libraryId,
       SearchTerm: query,
-      IncludeItemTypes: 'AudioBook,Audio',
+      IncludeItemTypes: 'AudioBook',
       Recursive: 'true',
       Limit: '50',
-      Fields: 'Overview,Chapters',
+      Fields: 'Overview,Chapters,Artists,AlbumArtist',
     });
 
     const response = await fetch(
@@ -199,7 +214,11 @@ export class EmbyAdapter implements IMediaServerAdapter {
     );
     if (!response.ok) throw new Error(`获取详情失败: ${response.status}`);
     const data = await response.json();
-    return this.convertMediaItem(data);
+
+    // 查询子 items（多文件有声书的各音频文件）
+    const childItems = await this.getChildAudioItems(itemId);
+
+    return this.convertMediaItem(data, childItems);
   }
 
   getAudioUrl(itemId: string, trackId: string): string {
@@ -274,7 +293,7 @@ export class EmbyAdapter implements IMediaServerAdapter {
     // Emby 没有统一的"所有进度"API，从 resume items 获取
     try {
       const response = await fetch(
-        `${this._serverUrl}/Users/${this._userId}/Items/Resume?IncludeItemTypes=AudioBook,Audio&Limit=20&Fields=Overview`,
+        `${this._serverUrl}/Users/${this._userId}/Items/Resume?IncludeItemTypes=AudioBook&Limit=20&Fields=Overview`,
         { headers: this.headers() }
       );
       if (!response.ok) return [];
@@ -300,28 +319,74 @@ export class EmbyAdapter implements IMediaServerAdapter {
 
   // ── 数据转换 ──
 
-  private convertMediaItem(raw: any): MediaItem {
-    const chapters: Chapter[] = (raw.Chapters || []).map((ch: any, idx: number) => ({
-      id: String(idx),
-      index: idx,
-      title: ch.Name || `Chapter ${idx + 1}`,
-      start: (ch.StartPositionTicks || 0) / 10000000,
-      duration: 0, // 需要从相邻 chapter 计算
-      trackId: raw.Id, // Emby 单文件用 item Id
-    }));
-
-    // 计算每章 duration（从 start 差值）
-    for (let i = 0; i < chapters.length; i++) {
-      if (i < chapters.length - 1) {
-        chapters[i].duration = chapters[i + 1].start - chapters[i].start;
-      } else {
-        const totalDur = (raw.RunTimeTicks || 0) / 10000000;
-        chapters[i].duration = totalDur - chapters[i].start;
-      }
+  /**
+   * 获取 AudioBook 的子音频文件列表
+   * Emby 多文件有声书结构：AudioBook(父) → Audio(子) × N
+   */
+  private async getChildAudioItems(parentId: string): Promise<any[]> {
+    try {
+      const response = await fetch(
+        `${this._serverUrl}/Users/${this._userId}/Items?ParentId=${parentId}&IncludeItemTypes=Audio&SortBy=SortName&SortOrder=Ascending&Fields=Chapters`,
+        { headers: this.headers() }
+      );
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.Items || [];
+    } catch {
+      return [];
     }
+  }
 
-    // 如果没有 chapters，创建单章
-    if (chapters.length === 0) {
+  /**
+   * 将 Emby 原始数据转为统一 MediaItem
+   *
+   * 有三种情况：
+   * 1. 多文件有声书：childItems.length > 0 → 每个子文件作为一个 chapter
+   * 2. 单文件有声书（有 Chapters 元数据）：用 raw.Chapters 分割
+   * 3. 单文件无章节：整个文件作为一个 chapter
+   */
+  private convertMediaItem(raw: any, childItems?: any[]): MediaItem {
+    const chapters: Chapter[] = [];
+
+    if (childItems && childItems.length > 0) {
+      // 多文件有声书：每个子 Audio item 是一个章节
+      let cumStart = 0;
+      childItems.forEach((child: any, idx: number) => {
+        const dur = (child.RunTimeTicks || 0) / 10000000;
+        chapters.push({
+          id: child.Id,
+          index: idx,
+          title: child.Name || `Chapter ${idx + 1}`,
+          start: cumStart,
+          duration: dur,
+          trackId: child.Id, // 子 item ID 用于 getAudioUrl
+        });
+        cumStart += dur;
+      });
+    } else if (raw.Chapters && raw.Chapters.length > 0) {
+      // 单文件有 Chapters 元数据
+      raw.Chapters.forEach((ch: any, idx: number) => {
+        const start = (ch.StartPositionTicks || 0) / 10000000;
+        chapters.push({
+          id: String(idx),
+          index: idx,
+          title: ch.Name || `Chapter ${idx + 1}`,
+          start,
+          duration: 0,
+          trackId: raw.Id, // 单文件用父 ID
+        });
+      });
+      // 计算每章 duration（从 start 差值）
+      for (let i = 0; i < chapters.length; i++) {
+        if (i < chapters.length - 1) {
+          chapters[i].duration = chapters[i + 1].start - chapters[i].start;
+        } else {
+          const totalDur = (raw.RunTimeTicks || 0) / 10000000;
+          chapters[i].duration = totalDur - chapters[i].start;
+        }
+      }
+    } else {
+      // 单文件无章节
       const dur = (raw.RunTimeTicks || 0) / 10000000;
       chapters.push({
         id: '0',

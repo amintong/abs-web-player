@@ -121,58 +121,23 @@ export function getAudio(): HTMLAudioElement {
 /** play() 并发锁：防止 StrictMode 双调用 / 快速双击时两个实例同时操作 audio */
 let _playLock = false;
 
-/** 从媒体项构建章节列表（兼容 ABSMediaItem 和 MediaItem 两种结构） */
+/** 从 MediaItem 构建章节列表（统一格式：item.chapters with trackId） */
 function createChapters(item: any): PlayerChapter[] {
-  const result: PlayerChapter[] = [];
-
-  // 新结构：MediaItem.chapters（adapter 统一格式）
-  if (item.chapters?.length && item.chapters[0]?.trackId !== undefined) {
-    item.chapters.forEach((ch: any, index: number) => {
-      result.push({
-        id: ch.id ?? index,
-        title: ch.title || `章节 ${index + 1}`,
-        start: 0,
-        end: ch.duration || 0,
-        index,
-        ino: ch.trackId || '',
-        duration: ch.duration || 0,
-      });
-    });
-    return result;
+  const chapters = item.chapters;
+  if (!chapters || chapters.length === 0) {
+    console.warn('[createChapters] 无章节数据', { id: item.id, keys: Object.keys(item).slice(0, 10) });
+    return [];
   }
 
-  // 旧结构：ABSMediaItem.media.chapters + audioFiles
-  if (item.media?.chapters?.length) {
-    item.media.chapters.forEach((ch: any, index: number) => {
-      const af = item.media?.audioFiles?.[index];
-      result.push({
-        id: ch.id ?? index,
-        title: ch.title || `章节 ${index + 1}`,
-        start: 0,
-        end: af?.duration || ch.end - ch.start || 0,
-        index,
-        ino: af?.ino || '',
-        duration: af?.duration || ch.end - ch.start || 0,
-      });
-    });
-  }
-
-  // 兜底：只有 audioFiles 没有 chapters
-  if (result.length === 0 && item.media?.audioFiles?.length) {
-    item.media.audioFiles.forEach((af: any, i: number) => {
-      result.push({
-        id: i,
-        title: af.metadata?.filename || `Track ${i + 1}`,
-        start: 0, end: af.duration, index: i, ino: af.ino, duration: af.duration,
-      });
-    });
-  }
-
-  if (result.length === 0) {
-    console.warn('[createChapters] 无法构建章节', { id: item.id, hasChapters: !!item.chapters, hasMedia: !!item.media });
-  }
-
-  return result;
+  return chapters.map((ch: any, index: number) => ({
+    id: ch.id ?? index,
+    title: ch.title || `章节 ${index + 1}`,
+    start: 0,
+    end: ch.duration || 0,
+    index,
+    ino: ch.trackId || '',
+    duration: ch.duration || 0,
+  }));
 }
 
 /** 计算累计时间（跨章节） */
@@ -331,29 +296,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audio.src = '';
 
       playerLog('lifecycle', '开始播放', {
-        title: item.media?.metadata?.title || item.title || item.id,
+        title: item.title || item.id,
         itemId: item.id,
-        author: item.media?.metadata?.authorName || item.author || 'N/A',
-        hasMedia: !!item.media,
-        chaptersCount: item.media?.chapters?.length || item.chapters?.length || 0,
-        audioFilesCount: item.media?.audioFiles?.length || 0,
-        duration: item.media?.duration || item.duration || 0,
+        author: item.author || 'N/A',
+        chaptersCount: item.chapters?.length || 0,
+        duration: item.duration || 0,
       });
 
       const chapters = createChapters(item);
       if (chapters.length === 0) {
         playerWarn('lifecycle', '无法创建章节列表', {
           itemId: item.id,
-          hasMedia: !!item.media,
-          hasChapters: !!(item.media?.chapters || item.chapters),
-          hasAudioFiles: !!item.media?.audioFiles,
+          hasChapters: !!item.chapters,
           keys: Object.keys(item).slice(0, 15).join(','),
         });
         return;
       }
 
       const libraryItemId = item.id;
-      const mediaItemId = item.media?.id || '';
+      const mediaItemId = item.id;
 
       // 从服务端恢复进度
       let targetIdx = 0;

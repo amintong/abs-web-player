@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Play, List, ChevronDown, ChevronUp, Check } from 'lucide-react';
 import { getItem, getCoverUrl, getProgress } from '../api/audiobookshelf';
 import { usePlayerStore } from '../controller/playerController';
-import { ABSMediaItem } from '../types';
-import { formatTime, formatDuration, getAuthorName } from '../utils/helpers';
+import { formatTime, formatDuration, getAuthorName, getTitle, getDuration, getChapters, getAudioFileCount, getNarrator } from '../utils/helpers';
 import { playerLog } from '../utils/playerLogger';
 
 /* ── 子组件 ────────────────────────────────────────────── */
@@ -23,7 +22,7 @@ function DetailHeader({ onBack }: { onBack: () => void }) {
 }
 
 /** 封面图区域 */
-function DetailCover({ itemId, title }: { itemId: string; title?: string }) {
+function DetailCover({ itemId, title }: { itemId: string; title: string }) {
   return (
     <div className="Detail-cover relative px-6 pt-5 pb-5">
       <div
@@ -73,10 +72,11 @@ function PlayButton({ onPlay }: { onPlay: () => void }) {
 
 /** 单个章节行 */
 const ChapterRow = React.forwardRef<HTMLButtonElement, {
-  chapter: import('../types').ABSChapter;
+  chapter: any;
   index: number; isCurrent: boolean; isCompleted: boolean;
   onClick: () => void;
 }>(({ chapter, index, isCurrent, isCompleted, onClick }, ref) => {
+  const chEnd = chapter.end != null ? chapter.end : (chapter.start + (chapter.duration || 0));
   return (
     <button
       ref={ref}
@@ -99,7 +99,7 @@ const ChapterRow = React.forwardRef<HTMLButtonElement, {
           {chapter.title}
         </p>
         <p className={`text-xs ${isCompleted ? 'text-gray-600' : 'text-gray-500'}`}>
-          {formatTime(chapter.start)} - {formatTime(chapter.end)}
+          {formatTime(chapter.start)} - {formatTime(chEnd)}
         </p>
       </div>
       {isCurrent && <span className="text-xs text-purple-400 flex-shrink-0">当前</span>}
@@ -111,7 +111,7 @@ const ChapterRow = React.forwardRef<HTMLButtonElement, {
 function ChapterSection({
   chapters, savedProgress, activeIndex, onSelectChapter,
 }: {
-  chapters: import('../types').ABSChapter[];
+  chapters: any[];
   savedProgress: number;
   activeIndex: number;
   onSelectChapter: (index: number) => void;
@@ -148,15 +148,18 @@ function ChapterSection({
 
       {expanded && (
         <div ref={listRef} className="overflow-y-auto flex-1 px-4 pb-4 space-y-1">
-          {chapters.map((chapter, index) => (
-            <ChapterRow
-              key={chapter.id} chapter={chapter} index={index}
-              isCurrent={index === activeIndex}
-              isCompleted={savedProgress > 0 && chapter.end <= savedProgress && index !== activeIndex}
-              onClick={() => onSelectChapter(index)}
-              ref={index === activeIndex ? currentRef : undefined}
-            />
-          ))}
+          {chapters.map((chapter, index) => {
+            const chEnd = chapter.end != null ? chapter.end : (chapter.start + (chapter.duration || 0));
+            return (
+              <ChapterRow
+                key={chapter.id} chapter={chapter} index={index}
+                isCurrent={index === activeIndex}
+                isCompleted={savedProgress > 0 && chEnd <= savedProgress && index !== activeIndex}
+                onClick={() => onSelectChapter(index)}
+                ref={index === activeIndex ? currentRef : undefined}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -174,7 +177,7 @@ export default function ItemDetailPage() {
     currentChapterIndex: storeChapterIndex,
   } = usePlayerStore();
 
-  const [item, setItem] = useState<ABSMediaItem | null>(null);
+  const [item, setItem] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [savedProgress, setSavedProgress] = useState(0);
 
@@ -196,8 +199,8 @@ export default function ItemDetailPage() {
   if (isLoading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
   if (!item) return <div className="h-full flex items-center justify-center text-gray-400">未找到该有声书</div>;
 
-  const chapters = item.media?.chapters || [];
-  const audioFiles = item.media?.audioFiles || [];
+  const chapters = getChapters(item);
+  const fileCount = getAudioFileCount(item);
 
   // 当前高亮章节：同书播放中用 store 实时值，否则从 savedProgress 算
   const isThisBookPlaying = playingItemId === item.id;
@@ -206,7 +209,8 @@ export default function ItemDetailPage() {
     activeIndex = storeChapterIndex;
   } else {
     for (let i = 0; i < chapters.length; i++) {
-      if (savedProgress >= chapters[i].start && savedProgress < chapters[i].end) {
+      const chEnd = chapters[i].end != null ? chapters[i].end : (chapters[i].start + (chapters[i].duration || 0));
+      if (savedProgress >= chapters[i].start && savedProgress < chEnd) {
         activeIndex = i; break;
       }
     }
@@ -229,13 +233,13 @@ export default function ItemDetailPage() {
       {/* 上半：内容自然高度，不压缩不滚动 */}
       <div className="flex-shrink-0">
         <DetailHeader onBack={() => navigate(-1)} />
-        <DetailCover itemId={item.id} title={item.media?.metadata?.title} />
+        <DetailCover itemId={item.id} title={getTitle(item)} />
         <DetailInfo
-          title={item.media?.metadata?.title}
+          title={getTitle(item)}
           author={getAuthorName(item)}
-          narrator={item.media?.metadata?.narratorName}
-          duration={item.media?.duration}
-          fileCount={audioFiles.length}
+          narrator={getNarrator(item)}
+          duration={getDuration(item)}
+          fileCount={fileCount}
           chapterCount={chapters.length}
         />
         <PlayButton onPlay={() => {

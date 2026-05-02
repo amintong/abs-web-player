@@ -8,7 +8,7 @@ import { useSkipSettings } from '../store/skipSettingsStore';
 import { Config } from '../utils/configManager';
 import type { BookSkipConfig } from '../utils/configManager';
 import { getCoverUrl } from '../api/audiobookshelf';
-import { formatTime } from '../utils/helpers';
+import { formatTime, getTitle } from '../utils/helpers';
 import SlideUpPanel from '../components/SlideUpPanel';
 import Slider from '../components/Slider';
 import { useAudioTime } from '../hooks/useAudioTime';
@@ -393,12 +393,12 @@ export default function PlayerPage() {
   return (
     <div className="h-full overflow-hidden bg-black flex flex-col">
       <TopBar
-        title={currentItem.media?.metadata?.title}
+        title={getTitle(currentItem)}
         onBack={() => window.history.back()}
         onOpenSkipConfig={() => setShowSkipConfig(!showSkipConfig)}
       />
 
-      <CoverArt itemId={currentItem.id} title={currentItem.media?.metadata?.title} />
+      <CoverArt itemId={currentItem.id} title={getTitle(currentItem)} />
 
       {chapters[currentChapterIndex] && (
         <ChapterLabel
