@@ -56,7 +56,8 @@ export function initBackground() {
     const s = store.getState();
     if (!s.libraryItemId) return;
     const ct = getCumulativeTimeFn(s.chapters, s.currentChapterIndex, audio.currentTime);
-    syncProgressNow(s.libraryItemId, ct, s.chapters[s.currentChapterIndex]?.duration || 0);
+    const totalDuration = s.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+    syncProgressNow(s.libraryItemId, ct, totalDuration);
     playerLog('background', `页面关闭 → 最终同步 · ${Math.round(ct)}s`);
   };
 
@@ -73,7 +74,8 @@ export function initBackground() {
       const s = store.getState();
       if (s.libraryItemId) {
         const ct = getCumulativeTimeFn(s.chapters, s.currentChapterIndex, audio.currentTime);
-        syncProgressNow(s.libraryItemId, ct, s.chapters[s.currentChapterIndex]?.duration || 0);
+        const totalDuration = s.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+        syncProgressNow(s.libraryItemId, ct, totalDuration);
         playerLog('background', `页面隐藏 → 同步 · ${Math.round(ct)}s`);
       }
     } else {

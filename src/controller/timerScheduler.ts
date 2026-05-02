@@ -190,13 +190,15 @@ function startAllTimers() {
   // ── 4b. 进度同步 ──
   if (!syncIntervalId && s.libraryItemId && s.chapters.length > 0) {
     const ct = d.cumulativeTime(s.chapters, s.currentChapterIndex, audio.currentTime);
-    d.syncProgress(s.libraryItemId, ct, s.chapters[s.currentChapterIndex]?.duration || 0);
+    const totalDuration = s.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+    d.syncProgress(s.libraryItemId, ct, totalDuration);
 
     syncIntervalId = setInterval(() => {
       const st = d.getStoreState();
       if (!st.libraryItemId || !st.isPlaying) return;
       const cum = d.cumulativeTime(st.chapters, st.currentChapterIndex, audio.currentTime);
-      d.syncProgress(st.libraryItemId, cum, st.chapters[st.currentChapterIndex]?.duration || 0);
+      const total = st.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+      d.syncProgress(st.libraryItemId, cum, total);
     }, 15000);
 
     d.log('sync', `启动 · 频率15s · 累计${Math.round(ct)}s`);
