@@ -122,7 +122,10 @@ function RecentlyAdded({ items, isLoading, libraryId }: {
   return (
     <section className="HomePage-recent mb-8">
       <div className="flex items-center justify-between px-5 mb-3">
-        <h2 className="text-lg font-semibold text-white">最近添加</h2>
+        <div className="flex items-center gap-2">
+          <Headphones className="w-5 h-5 text-blue-400" />
+          <h2 className="text-lg font-semibold text-white">最近添加</h2>
+        </div>
         <button
           onClick={() => navigate(`/library/${libraryId}`)}
           className="flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300"
