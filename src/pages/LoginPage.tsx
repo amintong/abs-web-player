@@ -29,26 +29,45 @@ function decodePwd(encoded: string): string {
   try { return decodeURIComponent(atob(encoded)); } catch { return ''; }
 }
 
+/** 解析 .env 中的 VITE_SERVERS JSON 列表 */
+function getEnvServers(): SavedConfig[] {
+  try {
+    const raw = import.meta.env.VITE_SERVERS;
+    if (!raw) return [];
+    const list = JSON.parse(raw) as Array<{ type?: string; server: string; username: string; password: string; library?: string }>;
+    return list.map(item => ({
+      server: item.server,
+      username: item.username,
+      password: encodePwd(item.password || ''),
+      lastLogin: 0,
+      serverType: (item.type as ServerType) || 'audiobookshelf',
+      libraryName: item.library,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 function getSavedConfigs(): SavedConfig[] {
   let configs: SavedConfig[] = [];
   try {
     configs = JSON.parse(localStorage.getItem('abs_login_history') || '[]');
   } catch { configs = []; }
 
-  // 如果 .env 有配置，且该用户名不在历史记录中，追加到顶部（含密码，仅展示不保存到 localStorage）
-  const envServer = import.meta.env.VITE_ABS_SERVER || '';
-  const envUsername = import.meta.env.VITE_ABS_USERNAME || '';
-  const envPassword = import.meta.env.VITE_ABS_PASSWORD || '';
-  if (envServer && envUsername && !configs.some(c => c.username === envUsername)) {
-    configs = [{ server: envServer, username: envUsername, password: encodePwd(envPassword), lastLogin: 0 }, ...configs];
+  // 从 .env 注入未存在的配置
+  const envConfigs = getEnvServers();
+  for (const env of envConfigs) {
+    if (!configs.some(c => c.server === env.server && c.username === env.username)) {
+      configs.push(env);
+    }
   }
   return configs;
 }
 
 /** 登录成功后记录：以 server+username 为唯一 key */
-function saveConfig(server: string, username: string, password: string, libraryId?: string, libraryName?: string) {
+function saveConfig(server: string, username: string, password: string, libraryId?: string, libraryName?: string, sType?: ServerType) {
   const configs = getSavedConfigs().filter(c => !(c.server === server && c.username === username));
-  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now(), libraryId, libraryName });
+  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now(), libraryId, libraryName, serverType: sType });
   localStorage.setItem('abs_login_history', JSON.stringify(configs.slice(0, 10)));
 }
 
@@ -198,13 +217,13 @@ export default function LoginPage() {
         setUser(user);
         setLibraries(libs);
         setActiveLibrary(matchedLib.id);
-        saveConfig(s, u, p, matchedLib.id, matchedLib.name);
+        saveConfig(s, u, p, matchedLib.id, matchedLib.name, serverType);
       } else if (libs.length === 1) {
         // 单库：直接进入
         setUser(user);
         setLibraries(libs);
         setActiveLibrary(libs[0].id);
-        saveConfig(s, u, p, libs[0].id, libs[0].name);
+        saveConfig(s, u, p, libs[0].id, libs[0].name, serverType);
       } else {
         // 多库且未指定/不存在：弹出选择
         setAvailableLibraries(libs);
@@ -229,7 +248,7 @@ export default function LoginPage() {
     // 更新历史记录里的库信息
     const s = server || localStorage.getItem('abs_server') || '';
     const u = username || localStorage.getItem('abs_username') || '';
-    saveConfig(s, u, password, libraryId, selectedLib?.name);
+    saveConfig(s, u, password, libraryId, selectedLib?.name, serverType);
   };
 
   const handleHistoryLogin = (cfg: SavedConfig) => {
@@ -238,6 +257,7 @@ export default function LoginPage() {
     setUsername(cfg.username);
     setPassword(pwd);
     setLibraryName(cfg.libraryName || '');
+    if (cfg.serverType) setServerType(cfg.serverType);
     // 直接登录，带上保存的 libraryId 和 libraryName
     if (pwd) {
       handleLogin(cfg.server, cfg.username, pwd, cfg.libraryId, cfg.libraryName);
@@ -390,7 +410,14 @@ export default function LoginPage() {
                     <span className="text-xs font-medium text-white">{cfg.username.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{cfg.username}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-white truncate">{cfg.username}</p>
+                      {cfg.serverType && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400 uppercase flex-shrink-0">
+                          {cfg.serverType}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 truncate">{cfg.server}</p>
                     {cfg.libraryName && <p className="text-[10px] text-purple-400 truncate">库: {cfg.libraryName}</p>}
                   </div>
