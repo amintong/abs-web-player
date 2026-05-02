@@ -70,6 +70,7 @@ export function initSchedulerDeps(d: SchedulerDeps) {
 // ════════════════════════════════════════
 
 let wdInterval: ReturnType<typeof setInterval> | null = null;
+let wdFineCleanup: (() => void) | null = null;
 let syncIntervalId: ReturnType<typeof setInterval> | null = null;
 let sleepTimerId: ReturnType<typeof setInterval> | null = null;
 
@@ -181,7 +182,7 @@ function startAllTimers() {
     setTimeout(() => { if (!audio.paused || audio.ended) check(); }, 1200);
 
     // 暴露精细检测清理方法供 shutdownAllTimers 使用
-    (wdInterval as any).__cleanupFine = () => {
+    wdFineCleanup = () => {
       if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
     };
   }
@@ -235,8 +236,7 @@ function shutdownAllTimers() {
   const d = _deps; // 可能未初始化（stop 时清理）
 
   if (wdInterval) {
-    // 清理精细检测
-    if ((wdInterval as any).__cleanupFine) (wdInterval as any).__cleanupFine();
+    if (wdFineCleanup) { wdFineCleanup(); wdFineCleanup = null; }
     clearInterval(wdInterval); wdInterval = null; d?.log('watchdog', '关闭');
   }
   if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; d?.log('sync', '关闭'); }
