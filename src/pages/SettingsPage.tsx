@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Volume2, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
 import { logout } from '../api/audiobookshelf';
@@ -9,7 +9,6 @@ import { AudioCache } from '../utils/audioCache';
 import { useAppConfig } from '../utils/configManager';
 import { clearLogs, subscribeLogs, type LogEntry, type LogModule } from '../utils/playerLogger';
 import SlideUpPanel from '../components/SlideUpPanel';
-import Slider from '../components/Slider';
 
 // ====== 日志查看器组件 =======
 
@@ -102,7 +101,7 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, logout: appLogout, debugMode, setDebugMode } = useAppStore();
-  const { playbackRate, setPlaybackRate, volume, setVolume } = usePlayerStore();
+  const { playbackRate, setPlaybackRate } = usePlayerStore();
   const [appConfig, updateApp] = useAppConfig();
 
   const [editDefaultIntro, setEditDefaultIntro] = useState(String(appConfig.defaultIntroSeconds));
@@ -135,8 +134,8 @@ export default function SettingsPage() {
   };
 
   const handleSaveDefaults = () => {
-    const intro = parseInt(editDefaultIntro) || 15;
-    const outro = parseInt(editDefaultOutro) || 10;
+    const intro = parseFloat(editDefaultIntro) || 15;
+    const outro = parseFloat(editDefaultOutro) || 10;
     updateApp({ defaultIntroSeconds: intro, defaultOutroSeconds: outro });
   };
 
@@ -187,17 +186,6 @@ export default function SettingsPage() {
             <h2 className="text-sm font-medium text-gray-400">播放设置</h2>
           </div>
 
-          <div className="px-4 py-4 border-b border-white/5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <Volume2 className="w-5 h-5 text-gray-400" />
-                <span className="text-white">音量</span>
-              </div>
-              <span className="text-sm text-gray-400">{Math.round(volume * 100)}%</span>
-            </div>
-            <Slider value={volume} min={0} max={1} step={0.05} onChange={setVolume} />
-          </div>
-
           <div className="px-4 py-4">
             <div className="flex items-center gap-3 mb-4">
               <span className="text-white">播放倍速</span>
@@ -222,20 +210,30 @@ export default function SettingsPage() {
           </div>
 
           <div className="px-4 py-4 space-y-4">
-            <div>
-              <label className="block text-sm text-white mb-2">默认跳过片头 (秒)</label>
-              <div className="flex items-center gap-3">
-                <Slider min={0} max={120} step={5} value={parseInt(editDefaultIntro) || 0}
-                  onChange={(v) => setEditDefaultIntro(String(v))} />
-                <span className="text-white text-sm w-12 text-center">{editDefaultIntro}s</span>
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-white">默认跳过片头</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text" inputMode="decimal" pattern="[0-9]*\.?[0-9]*"
+                  value={editDefaultIntro}
+                  onChange={(e) => setEditDefaultIntro(e.target.value.replace(/[^0-9.]/g, ''))}
+                  onBlur={() => setEditDefaultIntro(String(Math.min(parseFloat(editDefaultIntro) || 0, 300)))}
+                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                />
+                <span className="text-xs text-gray-400">秒</span>
               </div>
             </div>
-            <div>
-              <label className="block text-sm text-white mb-2">默认跳过片尾 (秒)</label>
-              <div className="flex items-center gap-3">
-                <Slider min={0} max={120} step={5} value={parseInt(editDefaultOutro) || 0}
-                  onChange={(v) => setEditDefaultOutro(String(v))} color="#3b82f6" />
-                <span className="text-white text-sm w-12 text-center">{editDefaultOutro}s</span>
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-white">默认跳过片尾</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text" inputMode="decimal" pattern="[0-9]*\.?[0-9]*"
+                  value={editDefaultOutro}
+                  onChange={(e) => setEditDefaultOutro(e.target.value.replace(/[^0-9.]/g, ''))}
+                  onBlur={() => setEditDefaultOutro(String(Math.min(parseFloat(editDefaultOutro) || 0, 300)))}
+                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                />
+                <span className="text-xs text-gray-400">秒</span>
               </div>
             </div>
             <button onClick={handleSaveDefaults}
@@ -254,26 +252,36 @@ export default function SettingsPage() {
           </div>
 
           <div className="px-4 py-4 space-y-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <SkipForward className="w-4 h-4 text-purple-400" />
-                <label className="text-sm text-white">快进 (秒)</label>
+                <label className="text-sm text-white">快进</label>
               </div>
-              <div className="flex items-center gap-3">
-                <Slider min={5} max={300} step={5} value={parseInt(editSkipForward) || 30}
-                  onChange={(v) => setEditSkipForward(String(v))} />
-                <span className="text-white text-sm w-12 text-center">{editSkipForward}s</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text" inputMode="numeric" pattern="[0-9]*"
+                  value={editSkipForward}
+                  onChange={(e) => setEditSkipForward(e.target.value.replace(/[^0-9]/g, ''))}
+                  onBlur={() => setEditSkipForward(String(Math.max(5, Math.min(parseInt(editSkipForward) || 30, 300))))}
+                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                />
+                <span className="text-xs text-gray-400">秒</span>
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
                 <SkipBack className="w-4 h-4 text-blue-400" />
-                <label className="text-sm text-white">快退 (秒)</label>
+                <label className="text-sm text-white">快退</label>
               </div>
-              <div className="flex items-center gap-3">
-                <Slider min={5} max={120} step={5} value={parseInt(editSkipBackward) || 10}
-                  onChange={(v) => setEditSkipBackward(String(v))} color="#3b82f6" />
-                <span className="text-white text-sm w-12 text-center">{editSkipBackward}s</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text" inputMode="numeric" pattern="[0-9]*"
+                  value={editSkipBackward}
+                  onChange={(e) => setEditSkipBackward(e.target.value.replace(/[^0-9]/g, ''))}
+                  onBlur={() => setEditSkipBackward(String(Math.max(5, Math.min(parseInt(editSkipBackward) || 10, 120))))}
+                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                />
+                <span className="text-xs text-gray-400">秒</span>
               </div>
             </div>
             <button onClick={handleSaveSkipTimes}
