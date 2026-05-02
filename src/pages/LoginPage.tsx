@@ -118,6 +118,7 @@ export default function LoginPage() {
   const [server, setServer] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [libraryName, setLibraryName] = useState('');
   const [serverType, setServerType] = useState<ServerType>('audiobookshelf');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -161,10 +162,11 @@ export default function LoginPage() {
   // 已认证且不在选库步骤 → 不显示登录页
   if (isAuthenticated && !showLibraryPicker) return null;
 
-  const handleLogin = async (srv?: string, usr?: string, pwd?: string, targetLibraryId?: string) => {
+  const handleLogin = async (srv?: string, usr?: string, pwd?: string, targetLibraryId?: string, targetLibraryName?: string) => {
     const s = srv || server;
     const u = usr || username;
     const p = pwd || password;
+    const libNameInput = targetLibraryName || libraryName;
     if (!s || !u || !p) { setError('请填写完整的登录信息'); return; }
 
     setError('');
@@ -182,8 +184,12 @@ export default function LoginPage() {
 
       const libs = await getLibraries();
 
-      // 如果指定了库且存在，直接使用
-      const matchedLib = targetLibraryId ? libs.find(l => l.id === targetLibraryId) : null;
+      // 匹配库：先按 id 匹配（历史记录），再按名字匹配（输入框）
+      let matchedLib = targetLibraryId ? libs.find((l: any) => l.id === targetLibraryId) : null;
+      if (!matchedLib && libNameInput) {
+        matchedLib = libs.find((l: any) => l.name === libNameInput || l.name.includes(libNameInput));
+      }
+
       if (matchedLib) {
         setUser(user);
         setLibraries(libs);
@@ -227,9 +233,10 @@ export default function LoginPage() {
     setServer(cfg.server);
     setUsername(cfg.username);
     setPassword(pwd);
-    // 直接登录，带上保存的 libraryId
+    setLibraryName(cfg.libraryName || '');
+    // 直接登录，带上保存的 libraryId 和 libraryName
     if (pwd) {
-      handleLogin(cfg.server, cfg.username, pwd, cfg.libraryId);
+      handleLogin(cfg.server, cfg.username, pwd, cfg.libraryId, cfg.libraryName);
     }
   };
 
@@ -341,6 +348,14 @@ export default function LoginPage() {
               placeholder="密码"
               className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
               required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">媒体库 <span className="text-gray-500 font-normal">(可选)</span></label>
+            <input type="text" value={libraryName}
+              onChange={(e) => setLibraryName(e.target.value)}
+              placeholder="留空则登录后选择"
+              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+            />
           </div>
 
           <button type="submit" disabled={isLoading}
