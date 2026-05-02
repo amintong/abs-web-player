@@ -298,10 +298,10 @@ export class AudiobookshelfAdapter implements IMediaServerAdapter {
     );
   }
 
-  async getUserProgress(): Promise<PlaybackProgress[]> {
+  async getUserProgress(libraryId?: string): Promise<PlaybackProgress[]> {
     const user = await this.validateSession();
     const rawUser = user.raw as ABSRawUser;
-    return (rawUser.mediaProgress || []).map(p => ({
+    let progressList = (rawUser.mediaProgress || []).map(p => ({
       itemId: p.libraryItemId,
       currentTime: p.currentTime || 0,
       duration: p.duration || 0,
@@ -309,6 +309,19 @@ export class AudiobookshelfAdapter implements IMediaServerAdapter {
       isFinished: p.isFinished || false,
       lastUpdate: p.lastUpdate || 0,
     }));
+
+    // 如果指定了库，按库过滤（通过请求库的 items 列表获取 ID 集合）
+    if (libraryId && progressList.length > 0) {
+      try {
+        const items = await this.getLibraryItems(libraryId, { limit: 500 });
+        const idSet = new Set(items.map(i => i.id));
+        progressList = progressList.filter(p => idSet.has(p.itemId));
+      } catch {
+        // 过滤失败时返回全部
+      }
+    }
+
+    return progressList;
   }
 
   // ── 数据转换 ──

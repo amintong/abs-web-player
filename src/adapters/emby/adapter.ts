@@ -289,13 +289,12 @@ export class EmbyAdapter implements IMediaServerAdapter {
     );
   }
 
-  async getUserProgress(): Promise<PlaybackProgress[]> {
-    // Emby 没有统一的"所有进度"API，从 resume items 获取
+  async getUserProgress(libraryId?: string): Promise<PlaybackProgress[]> {
+    // Emby 从 resume items 获取，支持按库过滤
     try {
-      const response = await fetch(
-        `${this._serverUrl}/Users/${this._userId}/Items/Resume?IncludeItemTypes=AudioBook&Limit=20&Fields=Overview`,
-        { headers: this.headers() }
-      );
+      let url = `${this._serverUrl}/Users/${this._userId}/Items/Resume?IncludeItemTypes=AudioBook&Limit=20&Fields=Overview`;
+      if (libraryId) url += `&ParentId=${libraryId}`;
+      const response = await fetch(url, { headers: this.headers() });
       if (!response.ok) return [];
       const data = await response.json();
       return (data.Items || []).map((item: any) => {

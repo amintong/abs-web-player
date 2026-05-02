@@ -117,6 +117,6 @@ export interface IMediaServerAdapter {
   syncProgress(itemId: string, currentTime: number, duration: number): Promise<void>;
   /** 页面关闭前用 sendBeacon 同步（不等响应） */
   syncProgressBeacon(itemId: string, currentTime: number, duration: number): void;
-  /** 获取用户所有播放进度 */
-  getUserProgress(): Promise<PlaybackProgress[]>;
+  /** 获取用户播放进度（可按库过滤） */
+  getUserProgress(libraryId?: string): Promise<PlaybackProgress[]>;
 }

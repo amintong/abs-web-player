@@ -61,8 +61,8 @@ export async function getProgress(itemId: string): Promise<PlaybackProgress> {
   return MediaServer.current.getProgress(itemId);
 }
 
-export async function getUserProgress(): Promise<PlaybackProgress[]> {
-  return MediaServer.current.getUserProgress();
+export async function getUserProgress(libraryId?: string): Promise<PlaybackProgress[]> {
+  return MediaServer.current.getUserProgress(libraryId);
 }
 
 export async function syncProgress(itemId: string, currentTime: number, duration: number): Promise<void> {

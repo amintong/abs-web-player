@@ -167,7 +167,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!activeLibraryId) return;
     let cancelled = false;
-    getUserProgress()
+    getUserProgress(activeLibraryId)
       .then(async (progressList) => {
         if (cancelled) return;
         const withTime = progressList.filter(p => p.currentTime > 0);
