@@ -28,14 +28,36 @@ async function handleResponse<T>(response: Response): Promise<T> {
 // 登录 (直接 POST 到 /login)
 export async function login(server: string, username: string, password: string): Promise<{ user: ABSUser }> {
   const base = server.replace(/\/+$/, '');
+
+  // 先做 CORS 预检：用 HEAD 请求检查服务器是否返回正确的跨域头
+  try {
+    const corsCheck = await fetch(`${base}/ping`, { method: 'GET', mode: 'cors' });
+    if (!corsCheck.ok && corsCheck.status === 0) {
+      throw new Error('CORS');
+    }
+  } catch (err) {
+    const msg = (err as Error).message || '';
+    if (msg === 'CORS' || msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+      throw new Error('跨域请求被拦截（CORS）。请在服务器 Nginx 配置中添加 CORS 响应头，详见下方帮助。');
+    }
+    // 其他网络错误（如服务器不可达）
+    throw new Error(`无法连接服务器: ${msg}`);
+  }
+
   const response = await fetch(`${base}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
+  }).catch((err) => {
+    const msg = (err as Error).message || '';
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+      throw new Error('跨域请求被拦截（CORS）。请在服务器 Nginx 配置中添加 CORS 响应头，详见下方帮助。');
+    }
+    throw err;
   });
 
   if (!response.ok) {
-    throw new Error('登录失败，请检查凭据');
+    throw new Error('登录失败，请检查用户名和密码');
   }
 
   const data = await response.json();

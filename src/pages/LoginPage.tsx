@@ -41,6 +41,60 @@ function saveConfig(server: string, username: string, password: string) {
   localStorage.setItem('abs_login_history', JSON.stringify(configs.slice(0, 10)));
 }
 
+/** CORS 配置帮助（可折叠） */
+function CorsHelp() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-8">
+      <button onClick={() => setOpen(!open)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+        {open ? '▾' : '▸'} 登录失败？可能需要配置 CORS
+      </button>
+      {open && (
+        <div className="mt-3 bg-white/5 rounded-xl p-4 text-xs text-gray-400 space-y-3">
+          <p>本应用是纯前端 PWA，直接从浏览器访问你的 Audiobookshelf 服务器 API。浏览器要求服务器返回 CORS 响应头，否则请求会被拦截。</p>
+
+          <div>
+            <p className="text-white font-medium mb-1">需要添加的响应头：</p>
+            <pre className="bg-black/50 rounded-lg p-3 overflow-x-auto text-[11px] text-green-400 leading-relaxed whitespace-pre">{`Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
+Access-Control-Allow-Headers: Authorization, Content-Type
+Access-Control-Allow-Credentials: true`}</pre>
+          </div>
+
+          <div>
+            <p className="text-white font-medium mb-1">Nginx 反向代理配置示例：</p>
+            <pre className="bg-black/50 rounded-lg p-3 overflow-x-auto text-[11px] text-blue-300 leading-relaxed whitespace-pre">{`server {
+    listen 443 ssl;
+    server_name abs.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:13378;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # CORS 配置
+        add_header Access-Control-Allow-Origin * always;
+        add_header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+
+        # 预检请求直接返回 204
+        if ($request_method = OPTIONS) {
+            return 204;
+        }
+    }
+}`}</pre>
+          </div>
+
+          <p className="text-gray-500">
+            提示：如果使用 Caddy / Traefik 等其他反代工具，请参考对应文档添加 CORS 头。
+            配置完成后刷新本页面重新登录即可。
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const { isAuthenticated, setUser, setLibraries, setMediaProgress } = useAppStore();
   const navRef = useRef(false);
@@ -216,6 +270,9 @@ export default function LoginPage() {
             </div>
           </div>
         )}
+
+        {/* CORS 配置帮助 */}
+        <CorsHelp />
       </div>
     </div>
   );
