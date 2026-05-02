@@ -165,36 +165,42 @@ export default function SettingsPage() {
       </header>
 
       <div className="px-4 py-6 space-y-6">
-        {/* 用户信息 */}
-        <div className="bg-white/5 rounded-2xl p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-              <span className="text-2xl font-bold text-white">
-                {user?.username?.charAt(0).toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div>
-              <p className="text-white font-medium">{user?.username}</p>
-              <p className="text-sm text-gray-400">{user?.email}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 当前媒体库 */}
+        {/* 账号与媒体库 */}
         <div className="bg-white/5 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-white/5">
             <h2 className="text-sm font-medium text-gray-400">媒体库</h2>
           </div>
-          <div className="px-4 py-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-              <Headphones className="w-5 h-5 text-white" />
+          <div className="px-4 py-4 space-y-3">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                <Headphones className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-medium truncate">
+                  {libraries.find(l => l.id === activeLibraryId)?.name || '未选择'}
+                </p>
+                <p className="text-xs text-gray-400 truncate">{user?.username}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-white font-medium">
-                {libraries.find(l => l.id === activeLibraryId)?.name || '未选择'}
-              </p>
-              <p className="text-xs text-gray-500">切换账号可选择其他库</p>
+            <div className="space-y-1.5 text-xs text-gray-500">
+              <div className="flex justify-between">
+                <span>类型</span>
+                <span className="text-gray-300 capitalize">{localStorage.getItem('abs_server_type') || 'audiobookshelf'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>服务器</span>
+                <span className="text-gray-300 truncate ml-4 max-w-[200px]">{localStorage.getItem('abs_server') || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>账号</span>
+                <span className="text-gray-300">{user?.username || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>当前库</span>
+                <span className="text-gray-300">{libraries.find(l => l.id === activeLibraryId)?.name || '-'}</span>
+              </div>
             </div>
+            <p className="text-[10px] text-gray-600 pt-1">切换账号可选择其他服务器或媒体库</p>
           </div>
         </div>
 
