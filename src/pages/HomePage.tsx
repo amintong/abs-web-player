@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Headphones, Clock, ChevronRight, Search, Settings } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
-import { getRecentlyAdded, getItem, getCoverUrl } from '../api/audiobookshelf';
+import { getRecentlyAdded, getItem, getCoverUrl, getCurrentUser } from '../api/audiobookshelf';
 import { ABSMediaItem, ABSProgress } from '../types';
 import { formatDuration, getAuthorName } from '../utils/helpers';
 
@@ -155,12 +155,19 @@ function RecentlyAdded({ items, isLoading, libraryId }: {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { activeLibraryId, mediaProgress } = useAppStore();
+  const { activeLibraryId, mediaProgress, setMediaProgress } = useAppStore();
   const { play, currentItem } = usePlayerStore();
 
   const [recentItems, setRecentItems] = useState<ABSMediaItem[]>([]);
   const [continueItems, setContinueItems] = useState<{ progress: ABSProgress; item: ABSMediaItem }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 进入主页时从服务端刷新最新进度
+  useEffect(() => {
+    getCurrentUser()
+      .then(user => { if (user.mediaProgress) setMediaProgress(user.mediaProgress); })
+      .catch(() => {});
+  }, []);
 
   // 最近添加 — 只在切换库时加载一次
   useEffect(() => {

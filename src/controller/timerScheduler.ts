@@ -191,6 +191,7 @@ function startAllTimers() {
   if (!syncIntervalId && s.libraryItemId && s.chapters.length > 0) {
     const ct = d.cumulativeTime(s.chapters, s.currentChapterIndex, audio.currentTime);
     const totalDuration = s.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+    d.log('sync', `启动 · 频率15s · 累计${Math.round(ct)}s · 全书${Math.round(totalDuration)}s · 进度${(ct / totalDuration * 100).toFixed(1)}%`);
     d.syncProgress(s.libraryItemId, ct, totalDuration);
 
     syncIntervalId = setInterval(() => {
@@ -198,10 +199,9 @@ function startAllTimers() {
       if (!st.libraryItemId || !st.isPlaying) return;
       const cum = d.cumulativeTime(st.chapters, st.currentChapterIndex, audio.currentTime);
       const total = st.chapters.reduce((sum: number, ch: any) => sum + (ch.duration || 0), 0);
+      d.log('sync', `同步 · 累计${Math.round(cum)}s · 全书${Math.round(total)}s · 进度${(cum / total * 100).toFixed(1)}%`);
       d.syncProgress(st.libraryItemId, cum, total);
     }, 15000);
-
-    d.log('sync', `启动 · 频率15s · 累计${Math.round(ct)}s`);
   }
 
   // ── 4c. 睡眠倒计时 ──
