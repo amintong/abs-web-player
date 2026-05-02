@@ -172,13 +172,13 @@ function startAllTimers() {
       const remain = end - outroSec - ct;
       if (remain <= 3 && remain > 0 && !fineInterval) {
         d.log('watchdog', `精细检测启动 · 距片尾触发${remain.toFixed(1)}s · 频率100ms`);
-        fineInterval = setInterval(() => { if (!audio.paused) check(); }, 100);
+        fineInterval = setInterval(() => { if (!audio.paused || audio.ended) check(); }, 100);
       }
     }
 
-    wdInterval = setInterval(() => { if (!audio.paused) check(); }, 1000);
+    wdInterval = setInterval(() => { if (!audio.paused || audio.ended) check(); }, 1000);
     // 延迟首次检查，给 audio seek 留足时间
-    setTimeout(() => { if (!audio.paused) check(); }, 1200);
+    setTimeout(() => { if (!audio.paused || audio.ended) check(); }, 1200);
 
     // 暴露精细检测清理方法供 shutdownAllTimers 使用
     (wdInterval as any).__cleanupFine = () => {
