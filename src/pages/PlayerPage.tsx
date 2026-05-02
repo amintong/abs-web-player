@@ -67,19 +67,26 @@ function ChapterLabel({
   );
 }
 
-/** 进度条 */
+/** 进度条 — 拖动期间使用本地值，松手后 seek */
 function SeekBar({ currentTime, duration, onSeek }: {
   currentTime: number; duration: number;
   onSeek: (t: number) => void;
 }) {
+  const [localTime, setLocalTime] = useState<number | null>(null);
+  const displayTime = localTime !== null ? localTime : currentTime;
+
   return (
     <div className="Player-seekBar px-8 mb-6">
       <Slider
-        value={currentTime} min={0} max={duration || 100}
-        onChange={onSeek}
+        value={displayTime} min={0} max={duration || 100}
+        onChange={(v) => setLocalTime(v)}
+        onMouseDown={() => setLocalTime(currentTime)}
+        onTouchStart={() => setLocalTime(currentTime)}
+        onMouseUp={() => { if (localTime !== null) { onSeek(localTime); setLocalTime(null); } }}
+        onTouchEnd={() => { if (localTime !== null) { onSeek(localTime); setLocalTime(null); } }}
       />
       <div className="flex justify-between mt-2 text-xs text-gray-400">
-        <span>{formatTime(currentTime)}</span>
+        <span>{formatTime(displayTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
     </div>
