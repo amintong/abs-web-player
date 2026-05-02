@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, LogOut, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug, Headphones } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
 import { logout } from '../api/audiobookshelf';
@@ -100,7 +100,7 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, logout: appLogout, debugMode, setDebugMode } = useAppStore();
+  const { user, libraries, activeLibraryId, setActiveLibrary, logout: appLogout, debugMode, setDebugMode } = useAppStore();
   const { playbackRate, setPlaybackRate } = usePlayerStore();
   const [appConfig, updateApp] = useAppConfig();
 
@@ -179,6 +179,40 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* 媒体库选择 */}
+        {libraries.length > 1 && (
+          <div className="bg-white/5 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-white/5">
+              <h2 className="text-sm font-medium text-gray-400">媒体库</h2>
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              {libraries.map(lib => (
+                <button
+                  key={lib.id}
+                  onClick={() => setActiveLibrary(lib.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
+                    activeLibraryId === lib.id
+                      ? 'bg-purple-600/20 ring-1 ring-purple-500/50'
+                      : 'hover:bg-white/5'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    activeLibraryId === lib.id ? 'bg-purple-600' : 'bg-white/10'
+                  }`}>
+                    <Headphones className="w-4 h-4 text-white" />
+                  </div>
+                  <span className={`text-sm ${activeLibraryId === lib.id ? 'text-purple-300 font-medium' : 'text-white'}`}>
+                    {lib.name}
+                  </span>
+                  {activeLibraryId === lib.id && (
+                    <span className="ml-auto text-xs text-purple-400">当前</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 播放设置 */}
         <div className="bg-white/5 rounded-2xl overflow-hidden">

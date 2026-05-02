@@ -2,12 +2,21 @@ import { useState, useEffect, useRef } from 'react';
 import { Headphones, History, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { login, getLibraries, getCurrentUser } from '../api/audiobookshelf';
+import { MediaServer, AudiobookshelfAdapter } from '../adapters';
+import type { ServerType } from '../adapters';
+
+const SERVER_TYPE_OPTIONS: { value: ServerType; label: string; available: boolean }[] = [
+  { value: 'audiobookshelf', label: 'Audiobookshelf', available: true },
+  { value: 'emby', label: 'Emby (即将支持)', available: false },
+  { value: 'plex', label: 'Plex (即将支持)', available: false },
+];
 
 interface SavedConfig {
   server: string;
   username: string;
-  password?: string;  // btoa+encodeURIComponent 编码后保存
+  password?: string;
   lastLogin: number;
+  serverType?: ServerType;
 }
 
 /** 简单编码密码，避免 localStorage 明文存储 */
@@ -107,6 +116,7 @@ export default function LoginPage() {
   const [server, setServer] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [serverType, setServerType] = useState<ServerType>('audiobookshelf');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoLogin, setIsAutoLogin] = useState(true);
@@ -155,6 +165,14 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
     try {
+      // 根据后端类型注册适配器
+      if (serverType === 'audiobookshelf') {
+        const adapter = new AudiobookshelfAdapter();
+        MediaServer.setAdapter(adapter);
+        MediaServer.saveServerType('audiobookshelf');
+      }
+      // TODO: emby / plex adapter
+
       const { user } = await login(s, u, p);
       setUser(user);
       if (user.mediaProgress) setMediaProgress(user.mediaProgress);
@@ -205,6 +223,30 @@ export default function LoginPage() {
           {error && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-400 text-sm">{error}</div>
           )}
+
+          {/* 后端类型 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">服务器类型</label>
+            <div className="flex gap-2">
+              {SERVER_TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  disabled={!opt.available}
+                  onClick={() => setServerType(opt.value)}
+                  className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    serverType === opt.value
+                      ? 'bg-purple-600 text-white'
+                      : opt.available
+                        ? 'bg-gray-900/50 border border-gray-700 text-gray-300 hover:border-purple-500'
+                        : 'bg-gray-900/30 border border-gray-800 text-gray-600 cursor-not-allowed'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">服务器地址</label>

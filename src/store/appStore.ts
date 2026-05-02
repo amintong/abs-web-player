@@ -33,8 +33,14 @@ export const useAppStore = create<AppState>()(
       setIsAuthenticated: (val) => set({ isAuthenticated: val }),
 
       setLibraries: (libraries) => {
-        const activeLibraryId = libraries.length > 0 ? libraries[0].id : null;
-        set({ libraries, activeLibraryId });
+        set((state) => {
+          // 如果之前选的库仍在列表中，保留；否则默认第一个
+          const stillExists = state.activeLibraryId && libraries.some(l => l.id === state.activeLibraryId);
+          return {
+            libraries,
+            activeLibraryId: stillExists ? state.activeLibraryId : (libraries[0]?.id ?? null),
+          };
+        });
       },
 
       setMediaProgress: (mediaProgress) => set({ mediaProgress }),
