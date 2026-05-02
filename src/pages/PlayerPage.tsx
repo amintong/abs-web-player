@@ -198,25 +198,25 @@ function SleepPicker({ remaining, options, onSelect, onClear }: {
   );
 }
 
-/** 秒数输入框 — 用 type=text+inputMode=numeric 避免 iOS type=number 的 bug */
+/** 秒数输入框 — 支持小数（0.1s精度） */
 function SecInput({ value, onChange, max = 300 }: {
   value: string; onChange: (v: string) => void; max?: number;
 }) {
   return (
     <input
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      inputMode="decimal"
+      pattern="[0-9]*\.?[0-9]*"
       value={value}
       onChange={(e) => {
-        // 只允许数字
-        const v = e.target.value.replace(/[^0-9]/g, '');
+        // 允许数字和小数点
+        const v = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');
         onChange(v);
       }}
       onBlur={(e) => {
-        // 失焦时 clamp 范围
-        const n = parseInt(e.target.value) || 0;
-        onChange(String(Math.min(n, max)));
+        // 失焦时 clamp 范围，保留1位小数
+        const n = parseFloat(e.target.value) || 0;
+        onChange(String(Math.min(Math.round(n * 10) / 10, max)));
       }}
       className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
       placeholder="0"
@@ -244,8 +244,8 @@ function SkipConfigPanel({
   if (!visible) return null;
 
   const handleSave = () => {
-    skipSettings.setBookIntro(itemId, parseInt(editIntro) || 0);
-    skipSettings.setBookOutro(itemId, parseInt(editOutro) || 0);
+    skipSettings.setBookIntro(itemId, parseFloat(editIntro) || 0);
+    skipSettings.setBookOutro(itemId, parseFloat(editOutro) || 0);
     onClose();
   };
 
@@ -262,8 +262,8 @@ function SkipConfigPanel({
             >自动{bookSettings.autoSkipIntro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
-            <Slider min={0} max={120} step={5} value={parseInt(editIntro) || 0}
-              onChange={(v) => setEditIntro(String(v))} />
+            <Slider min={0} max={120} step={0.5} value={parseFloat(editIntro) || 0}
+              onChange={(v) => setEditIntro(String(Math.round(v * 10) / 10))} />
             <SecInput value={editIntro} onChange={setEditIntro} max={300} />
             <span className="text-xs text-gray-400">秒</span>
           </div>
@@ -278,8 +278,8 @@ function SkipConfigPanel({
             >自动{bookSettings.autoSkipOutro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
-            <Slider min={0} max={120} step={5} value={parseInt(editOutro) || 0}
-              onChange={(v) => setEditOutro(String(v))} color="#3b82f6" />
+            <Slider min={0} max={120} step={0.5} value={parseFloat(editOutro) || 0}
+              onChange={(v) => setEditOutro(String(Math.round(v * 10) / 10))} color="#3b82f6" />
             <SecInput value={editOutro} onChange={setEditOutro} max={300} />
             <span className="text-xs text-gray-400">秒</span>
           </div>

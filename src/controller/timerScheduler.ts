@@ -133,6 +133,9 @@ function startAllTimers() {
   if (!wdInterval) {
     d.log('watchdog', `启动 · 第${s.currentChapterIndex + 1}/${s.chapters.length}章 · ${ch?.title || '?'} · 频率1s`);
 
+    // 精细检测句柄：接近片尾时 200ms 轮询，减少触发延迟
+    let fineInterval: ReturnType<typeof setInterval> | null = null;
+
     function check() {
       const st = d.getStoreState();
       if (!st.currentItem || !st.currentChapter) return;
@@ -141,36 +144,46 @@ function startAllTimers() {
       const cfg = d.getBookConfig(st.currentItem.id);
       const end = st.currentChapter.duration;
 
-      // 每秒静默打印（DevTools Verbose 级别，不写入页面日志缓冲）
-      console.debug(
-        `%c[watchdog]%c ct=${ct.toFixed(1)}s end=${end.toFixed(1)}s remain=${(end - ct).toFixed(1)}s` +
-        ` | intro=${cfg.autoSkipIntro}/${cfg.introSeconds}s outro=${cfg.autoSkipOutro}/${cfg.outroSeconds}s`,
-        'color:#38bdf8', 'color:inherit'
-      );
-
       // 片头跳过
-      if (cfg.autoSkipIntro && cfg.introSeconds > 0) {
-        if (ct < cfg.introSeconds) {
-          d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
-          audio.currentTime = cfg.introSeconds;
-          return;
-        }
+      if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
+        d.log('chapter', `片头跳过 · ${ct.toFixed(1)}s → ${cfg.introSeconds}s`);
+        audio.currentTime = cfg.introSeconds;
+        return;
       }
+
       // 片尾切章
       if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {
         d.log('watchdog', `片尾触发 · ct=${ct.toFixed(1)}s >= end-outro=${(end - cfg.outroSeconds).toFixed(1)}s`);
-        finishOrNext(audio); return;
+        if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
+        finishOrNext(audio);
+        return;
       }
+
       // 自然结束
       if (ct >= end) {
         d.log('watchdog', `自然结束触发 · ct=${ct.toFixed(1)}s >= end=${end.toFixed(1)}s`);
+        if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
         finishOrNext(audio);
+        return;
+      }
+
+      // 接近片尾 3s 内：启动精细检测（100ms 频率复用 check），精度 ±0.1s
+      const outroSec = (cfg.autoSkipOutro && cfg.outroSeconds > 0) ? cfg.outroSeconds : 0;
+      const remain = end - outroSec - ct;
+      if (remain <= 3 && remain > 0 && !fineInterval) {
+        d.log('watchdog', `精细检测启动 · 距片尾触发${remain.toFixed(1)}s · 频率100ms`);
+        fineInterval = setInterval(() => { if (!audio.paused) check(); }, 100);
       }
     }
 
     wdInterval = setInterval(() => { if (!audio.paused) check(); }, 1000);
-    // 延迟首次检查，给 audio seek 留足时间（避免 currentTime=0 误判章节结束）
+    // 延迟首次检查，给 audio seek 留足时间
     setTimeout(() => { if (!audio.paused) check(); }, 1200);
+
+    // 暴露精细检测清理方法供 shutdownAllTimers 使用
+    (wdInterval as any).__cleanupFine = () => {
+      if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
+    };
   }
 
   // ── 4b. 进度同步 ──
@@ -221,7 +234,11 @@ function shutdownAllTimers() {
   const hadAny = wdInterval || syncIntervalId || sleepTimerId;
   const d = _deps; // 可能未初始化（stop 时清理）
 
-  if (wdInterval) { clearInterval(wdInterval); wdInterval = null; d?.log('watchdog', '关闭'); }
+  if (wdInterval) {
+    // 清理精细检测
+    if ((wdInterval as any).__cleanupFine) (wdInterval as any).__cleanupFine();
+    clearInterval(wdInterval); wdInterval = null; d?.log('watchdog', '关闭');
+  }
   if (syncIntervalId) { clearInterval(syncIntervalId); syncIntervalId = null; d?.log('sync', '关闭'); }
   if (sleepTimerId) { clearInterval(sleepTimerId); sleepTimerId = null; d?.log('sleep', '关闭'); }
 
@@ -248,8 +265,8 @@ function finishOrNext(audio: HTMLAudioElement) {
 
   if (idx < chapters.length - 1) {
     d.log('chapter', `章节切换 · ${idx + 1} → ${idx + 2}`);
-    // 延迟调用打破同步栈（避免在 watchdog interval callback 中直接修改状态）
-    setTimeout(() => { _deps && deps().playNextChapter(); }, 0);
+    // 微任务：打破 setInterval 同步栈，但比 setTimeout 快（接近零延迟）
+    queueMicrotask(() => { _deps && deps().playNextChapter(); });
   } else {
     d.log('lifecycle', '全书播放完毕');
     audio.pause();
