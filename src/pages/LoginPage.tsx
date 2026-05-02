@@ -17,6 +17,8 @@ interface SavedConfig {
   password?: string;
   lastLogin: number;
   serverType?: ServerType;
+  libraryId?: string;
+  libraryName?: string;
 }
 
 /** 简单编码密码，避免 localStorage 明文存储 */
@@ -43,10 +45,10 @@ function getSavedConfigs(): SavedConfig[] {
   return configs;
 }
 
-/** 登录成功后记录：以用户名为唯一 key，新记录覆盖旧记录，密码经编码后保存 */
-function saveConfig(server: string, username: string, password: string) {
-  const configs = getSavedConfigs().filter(c => c.username !== username);
-  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now() });
+/** 登录成功后记录：以 server+username 为唯一 key */
+function saveConfig(server: string, username: string, password: string, libraryId?: string) {
+  const configs = getSavedConfigs().filter(c => !(c.server === server && c.username === username));
+  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now(), libraryId });
   localStorage.setItem('abs_login_history', JSON.stringify(configs.slice(0, 10)));
 }
 
@@ -105,7 +107,7 @@ Access-Control-Allow-Credentials: true`}</pre>
 }
 
 export default function LoginPage() {
-  const { isAuthenticated, setUser, setLibraries, setMediaProgress } = useAppStore();
+  const { isAuthenticated, setUser, setLibraries, setMediaProgress, setActiveLibrary } = useAppStore();
   const navRef = useRef(false);
 
   // 当前已保存的配置
@@ -121,6 +123,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoLogin, setIsAutoLogin] = useState(true);
   const [historyKey, setHistoryKey] = useState(0);
+  // 库选择步骤
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  const [availableLibraries, setAvailableLibraries] = useState<any[]>([]);
 
   const savedConfigs = getSavedConfigs();
 
@@ -153,8 +158,8 @@ export default function LoginPage() {
     tryAutoLogin();
   }, []);
 
-  // 已认证就不再显示登录页
-  if (isAuthenticated) return null;
+  // 已认证且不在选库步骤 → 不显示登录页
+  if (isAuthenticated && !showLibraryPicker) return null;
 
   const handleLogin = async (srv?: string, usr?: string, pwd?: string) => {
     const s = srv || server;
@@ -171,19 +176,43 @@ export default function LoginPage() {
         MediaServer.setAdapter(adapter);
         MediaServer.saveServerType('audiobookshelf');
       }
-      // TODO: emby / plex adapter
 
       const { user } = await login(s, u, p);
-      setUser(user);
       if (user.mediaProgress) setMediaProgress(user.mediaProgress);
+
       const libs = await getLibraries();
-      setLibraries(libs);
-      saveConfig(s, u, p);
+
+      if (libs.length > 1) {
+        // 多库：弹出选择
+        setAvailableLibraries(libs);
+        setShowLibraryPicker(true);
+        // 暂存 user，等选库后再完成登录
+        setUser(user);
+        saveConfig(s, u, p);
+      } else {
+        // 单库：直接进入
+        setUser(user);
+        setLibraries(libs);
+        setActiveLibrary(libs[0]?.id || null);
+        saveConfig(s, u, p, libs[0]?.id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  /** 选择库后完成登录 */
+  const handleSelectLibrary = (libraryId: string) => {
+    const { libraries: libs } = { libraries: availableLibraries };
+    setLibraries(libs);
+    setActiveLibrary(libraryId);
+    setShowLibraryPicker(false);
+    // 更新历史记录里的库信息
+    const s = server || localStorage.getItem('abs_server') || '';
+    const u = username || localStorage.getItem('abs_username') || '';
+    saveConfig(s, u, password, libraryId);
   };
 
   const handleHistoryLogin = (cfg: SavedConfig) => {
@@ -202,6 +231,35 @@ export default function LoginPage() {
       <div className="overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
         <p className="text-gray-400 text-sm">正在自动登录...</p>
+      </div>
+    );
+  }
+
+  // 库选择步骤
+  if (showLibraryPicker) {
+    return (
+      <div className="overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="w-full max-w-sm">
+          <h2 className="text-2xl font-bold text-white text-center mb-2">选择媒体库</h2>
+          <p className="text-gray-400 text-sm text-center mb-8">请选择要使用的媒体库</p>
+          <div className="space-y-3">
+            {availableLibraries.map((lib: any) => (
+              <button
+                key={lib.id}
+                onClick={() => handleSelectLibrary(lib.id)}
+                className="w-full flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-2xl px-5 py-4 transition-colors"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Headphones className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-white font-medium">{lib.name}</p>
+                  <p className="text-xs text-gray-400">{lib.mediaType === 'book' ? '有声书' : lib.mediaType}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

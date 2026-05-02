@@ -100,7 +100,7 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
-  const { user, libraries, activeLibraryId, setActiveLibrary, logout: appLogout, debugMode, setDebugMode } = useAppStore();
+  const { user, libraries, activeLibraryId, logout: appLogout, debugMode, setDebugMode } = useAppStore();
   const { playbackRate, setPlaybackRate } = usePlayerStore();
   const [appConfig, updateApp] = useAppConfig();
 
@@ -180,39 +180,23 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* 媒体库选择 */}
-        {libraries.length > 1 && (
-          <div className="bg-white/5 rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/5">
-              <h2 className="text-sm font-medium text-gray-400">媒体库</h2>
+        {/* 当前媒体库 */}
+        <div className="bg-white/5 rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <h2 className="text-sm font-medium text-gray-400">媒体库</h2>
+          </div>
+          <div className="px-4 py-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+              <Headphones className="w-5 h-5 text-white" />
             </div>
-            <div className="px-4 py-3 space-y-2">
-              {libraries.map(lib => (
-                <button
-                  key={lib.id}
-                  onClick={() => setActiveLibrary(lib.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
-                    activeLibraryId === lib.id
-                      ? 'bg-purple-600/20 ring-1 ring-purple-500/50'
-                      : 'hover:bg-white/5'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                    activeLibraryId === lib.id ? 'bg-purple-600' : 'bg-white/10'
-                  }`}>
-                    <Headphones className="w-4 h-4 text-white" />
-                  </div>
-                  <span className={`text-sm ${activeLibraryId === lib.id ? 'text-purple-300 font-medium' : 'text-white'}`}>
-                    {lib.name}
-                  </span>
-                  {activeLibraryId === lib.id && (
-                    <span className="ml-auto text-xs text-purple-400">当前</span>
-                  )}
-                </button>
-              ))}
+            <div>
+              <p className="text-white font-medium">
+                {libraries.find(l => l.id === activeLibraryId)?.name || '未选择'}
+              </p>
+              <p className="text-xs text-gray-500">切换账号可选择其他库</p>
             </div>
           </div>
-        )}
+        </div>
 
         {/* 播放设置 */}
         <div className="bg-white/5 rounded-2xl overflow-hidden">
@@ -444,11 +428,11 @@ export default function SettingsPage() {
           />
         </SlideUpPanel>
 
-        {/* 登出 */}
+        {/* 切换账号 */}
         <button onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-500 font-medium py-4 rounded-2xl hover:bg-red-500/20 transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-white/5 text-purple-400 font-medium py-4 rounded-2xl hover:bg-white/10 transition-colors"
         >
-          <LogOut className="w-5 h-5" />退出登录
+          <LogOut className="w-5 h-5" />切换账号
         </button>
       </div>
     </div>
