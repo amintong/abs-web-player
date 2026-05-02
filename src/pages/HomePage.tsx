@@ -5,6 +5,7 @@ import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
 import { getRecentlyAdded, getItem, getCoverUrl, getUserProgress } from '../api/audiobookshelf';
 import { formatDuration, getAuthorName, getTitle, getDuration } from '../utils/helpers';
+import CoverImage from '../components/CoverImage';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -42,7 +43,7 @@ function ContinueCard({ progress, item, onPlay }: {
   return (
     <button onClick={onPlay} className="ContinueCard flex-shrink-0 w-36 group">
       <div className="ContinueCard-cover relative aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-gray-800">
-        <img src={getCoverUrl(item.id)} alt={title} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(item.id)} alt={title} className="w-full h-full object-cover" />
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
           <div className="h-full bg-purple-500" style={{ width: `${progress.progress * 100}%` }} />
         </div>
@@ -91,7 +92,7 @@ function MediaItemRow({ item, onClick }: {
       className="MediaItemRow w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10"
     >
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
         <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>

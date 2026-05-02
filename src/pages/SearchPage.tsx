@@ -4,6 +4,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { getLibraryItems, getCoverUrl } from '../api/audiobookshelf';
 import { formatDuration, getAuthorName, getTitle, getDuration, getNarrator } from '../utils/helpers';
+import CoverImage from '../components/CoverImage';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -42,7 +43,7 @@ function SearchResultItem({ item }: { item: any }) {
   return (
     <button onClick={() => navigate(`/item/${item.id}`)} className="Search-resultItem w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10">
       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
         <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>

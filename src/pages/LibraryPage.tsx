@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Headphones, Search, Grid, List } from 'lucide-react';
 import { getLibraryItems, getCoverUrl } from '../api/audiobookshelf';
 import { formatDuration, getAuthorName, getTitle, getDuration } from '../utils/helpers';
+import CoverImage from '../components/CoverImage';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -62,7 +63,7 @@ function ListItem({ item }: { item: any }) {
   return (
     <button onClick={() => navigate(`/item/${item.id}`)} className="Library-listItem w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10">
       <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
         <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>
@@ -79,7 +80,7 @@ function GridCard({ item }: { item: any }) {
   return (
     <button onClick={() => navigate(`/item/${item.id}`)} className="Library-gridCard group text-left">
       <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-gray-800">
-        <img src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <h3 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">{getTitle(item)}</h3>
       <p className="text-xs text-gray-400 truncate">{getAuthorName(item)}</p>

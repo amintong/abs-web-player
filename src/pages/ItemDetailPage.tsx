@@ -5,6 +5,7 @@ import { getItem, getCoverUrl, getProgress } from '../api/audiobookshelf';
 import { usePlayerStore } from '../controller/playerController';
 import { formatTime, formatDuration, getAuthorName, getTitle, getDuration, getChapters, getAudioFileCount, getNarrator } from '../utils/helpers';
 import { playerLog } from '../utils/playerLogger';
+import CoverImage from '../components/CoverImage';
 
 /* ── 子组件 ────────────────────────────────────────────── */
 
@@ -29,7 +30,7 @@ function DetailCover({ itemId, title }: { itemId: string; title: string }) {
         className="mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800"
         style={{ width: '38vw', height: '38vw' }}
       >
-        <img src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
       </div>
     </div>
   );

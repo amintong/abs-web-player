@@ -9,6 +9,7 @@ import { Config } from '../utils/configManager';
 import type { BookSkipConfig } from '../utils/configManager';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { formatTime, getTitle } from '../utils/helpers';
+import CoverImage from '../components/CoverImage';
 import SlideUpPanel from '../components/SlideUpPanel';
 import Slider from '../components/Slider';
 import { useAudioTime } from '../hooks/useAudioTime';
@@ -43,7 +44,7 @@ function CoverArt({ itemId, title }: { itemId: string; title?: string }) {
   return (
     <div className="Player-cover flex-1 flex flex-col items-center justify-center px-12 pt-4 pb-8">
       <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
-        <img src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
+        <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
       </div>
     </div>
   );

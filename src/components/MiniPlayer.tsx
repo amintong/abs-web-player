@@ -3,6 +3,7 @@ import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { usePlayerStore } from '../controller/playerController';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName, getTitle } from '../utils/helpers';
+import CoverImage from './CoverImage';
 import { Config } from '../utils/configManager';
 import { useAudioTime } from '../hooks/useAudioTime';
 import { playerLog } from '../utils/playerLogger';
@@ -29,7 +30,7 @@ function CoverArt({ itemId, title }: { itemId: string; title?: string }) {
       onClick={() => navigate('/player')}
       className="MiniPlayer-cover w-12 h-12 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0"
     >
-      <img src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
+      <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
     </button>
   );
 }
