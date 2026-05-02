@@ -46,9 +46,9 @@ function getSavedConfigs(): SavedConfig[] {
 }
 
 /** 登录成功后记录：以 server+username 为唯一 key */
-function saveConfig(server: string, username: string, password: string, libraryId?: string) {
+function saveConfig(server: string, username: string, password: string, libraryId?: string, libraryName?: string) {
   const configs = getSavedConfigs().filter(c => !(c.server === server && c.username === username));
-  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now(), libraryId });
+  configs.unshift({ server, username, password: encodePwd(password), lastLogin: Date.now(), libraryId, libraryName });
   localStorage.setItem('abs_login_history', JSON.stringify(configs.slice(0, 10)));
 }
 
@@ -188,13 +188,13 @@ export default function LoginPage() {
         setUser(user);
         setLibraries(libs);
         setActiveLibrary(matchedLib.id);
-        saveConfig(s, u, p, matchedLib.id);
+        saveConfig(s, u, p, matchedLib.id, matchedLib.name);
       } else if (libs.length === 1) {
         // 单库：直接进入
         setUser(user);
         setLibraries(libs);
         setActiveLibrary(libs[0].id);
-        saveConfig(s, u, p, libs[0].id);
+        saveConfig(s, u, p, libs[0].id, libs[0].name);
       } else {
         // 多库且未指定/不存在：弹出选择
         setAvailableLibraries(libs);
@@ -211,14 +211,15 @@ export default function LoginPage() {
 
   /** 选择库后完成登录 */
   const handleSelectLibrary = (libraryId: string) => {
-    const { libraries: libs } = { libraries: availableLibraries };
+    const libs = availableLibraries;
+    const selectedLib = libs.find((l: any) => l.id === libraryId);
     setLibraries(libs);
     setActiveLibrary(libraryId);
     setShowLibraryPicker(false);
     // 更新历史记录里的库信息
     const s = server || localStorage.getItem('abs_server') || '';
     const u = username || localStorage.getItem('abs_username') || '';
-    saveConfig(s, u, password, libraryId);
+    saveConfig(s, u, password, libraryId, selectedLib?.name);
   };
 
   const handleHistoryLogin = (cfg: SavedConfig) => {
@@ -372,7 +373,7 @@ export default function LoginPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{cfg.username}</p>
                     <p className="text-xs text-gray-500 truncate">{cfg.server}</p>
-                    {cfg.libraryId && <p className="text-[10px] text-purple-400 truncate">库: {cfg.libraryId.slice(0, 8)}...</p>}
+                    {cfg.libraryName && <p className="text-[10px] text-purple-400 truncate">库: {cfg.libraryName}</p>}
                   </div>
                   <span className="text-[10px] text-gray-600">
                     {new Date(cfg.lastLogin).toLocaleDateString('zh-CN')}
