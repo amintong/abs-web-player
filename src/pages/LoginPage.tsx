@@ -161,7 +161,7 @@ export default function LoginPage() {
   // 已认证且不在选库步骤 → 不显示登录页
   if (isAuthenticated && !showLibraryPicker) return null;
 
-  const handleLogin = async (srv?: string, usr?: string, pwd?: string) => {
+  const handleLogin = async (srv?: string, usr?: string, pwd?: string, targetLibraryId?: string) => {
     const s = srv || server;
     const u = usr || username;
     const p = pwd || password;
@@ -182,19 +182,25 @@ export default function LoginPage() {
 
       const libs = await getLibraries();
 
-      if (libs.length > 1) {
-        // 多库：弹出选择
-        setAvailableLibraries(libs);
-        setShowLibraryPicker(true);
-        // 暂存 user，等选库后再完成登录
+      // 如果指定了库且存在，直接使用
+      const matchedLib = targetLibraryId ? libs.find(l => l.id === targetLibraryId) : null;
+      if (matchedLib) {
         setUser(user);
-        saveConfig(s, u, p);
-      } else {
+        setLibraries(libs);
+        setActiveLibrary(matchedLib.id);
+        saveConfig(s, u, p, matchedLib.id);
+      } else if (libs.length === 1) {
         // 单库：直接进入
         setUser(user);
         setLibraries(libs);
-        setActiveLibrary(libs[0]?.id || null);
-        saveConfig(s, u, p, libs[0]?.id);
+        setActiveLibrary(libs[0].id);
+        saveConfig(s, u, p, libs[0].id);
+      } else {
+        // 多库且未指定/不存在：弹出选择
+        setAvailableLibraries(libs);
+        setShowLibraryPicker(true);
+        setUser(user);
+        saveConfig(s, u, p);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登录失败，请重试');
@@ -216,9 +222,14 @@ export default function LoginPage() {
   };
 
   const handleHistoryLogin = (cfg: SavedConfig) => {
+    const pwd = cfg.password ? decodePwd(cfg.password) : '';
     setServer(cfg.server);
     setUsername(cfg.username);
-    setPassword(cfg.password ? decodePwd(cfg.password) : '');
+    setPassword(pwd);
+    // 直接登录，带上保存的 libraryId
+    if (pwd) {
+      handleLogin(cfg.server, cfg.username, pwd, cfg.libraryId);
+    }
   };
 
   const clearHistory = () => {
@@ -361,6 +372,7 @@ export default function LoginPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-white truncate">{cfg.username}</p>
                     <p className="text-xs text-gray-500 truncate">{cfg.server}</p>
+                    {cfg.libraryId && <p className="text-[10px] text-purple-400 truncate">库: {cfg.libraryId.slice(0, 8)}...</p>}
                   </div>
                   <span className="text-[10px] text-gray-600">
                     {new Date(cfg.lastLogin).toLocaleDateString('zh-CN')}
