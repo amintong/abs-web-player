@@ -162,8 +162,9 @@ export default function HomePage() {
   const [continueItems, setContinueItems] = useState<{ progress: { progress: number }; item: any }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 进入主页时从服务端刷新进度并构建"继续收听"列表
+  // 从服务端拉取"继续收听"列表，切库时刷新
   useEffect(() => {
+    if (!activeLibraryId) return;
     let cancelled = false;
     getUserProgress()
       .then(async (progressList) => {
@@ -181,7 +182,7 @@ export default function HomePage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [activeLibraryId]);
 
   // 最近添加 — 只在切换库时加载一次
   useEffect(() => {
