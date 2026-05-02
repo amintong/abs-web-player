@@ -209,7 +209,7 @@ export class EmbyAdapter implements IMediaServerAdapter {
   }
 
   getCoverUrl(itemId: string): string {
-    return `${this._serverUrl}/Items/${itemId}/Images/Primary?fillHeight=400&fillWidth=400&quality=90`;
+    return `${this._serverUrl}/Items/${itemId}/Images/Primary?maxHeight=400&api_key=${this._token}`;
   }
 
   // ── 播放进度 ──
