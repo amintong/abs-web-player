@@ -29,23 +29,30 @@ function decodePwd(encoded: string): string {
   try { return decodeURIComponent(atob(encoded)); } catch { return ''; }
 }
 
-/** 解析 .env 中的 VITE_SERVERS JSON 列表 */
+/** 解析 .env 中的 VITE_SERVER_{N}_* 格式配置 */
 function getEnvServers(): SavedConfig[] {
-  try {
-    const raw = import.meta.env.VITE_SERVERS;
-    if (!raw) return [];
-    const list = JSON.parse(raw) as Array<{ type?: string; server: string; username: string; password: string; library?: string }>;
-    return list.map(item => ({
-      server: item.server,
-      username: item.username,
-      password: encodePwd(item.password || ''),
+  const results: SavedConfig[] = [];
+  const env = import.meta.env;
+
+  for (let i = 1; i <= 10; i++) {
+    const type = env[`VITE_SERVER_${i}_TYPE`];
+    const url = env[`VITE_SERVER_${i}_URL`];
+    const username = env[`VITE_SERVER_${i}_USERNAME`];
+    const password = env[`VITE_SERVER_${i}_PASSWORD`];
+    const library = env[`VITE_SERVER_${i}_LIBRARY`];
+
+    if (!url || !username) continue;
+
+    results.push({
+      server: url,
+      username,
+      password: password ? encodePwd(password) : undefined,
       lastLogin: 0,
-      serverType: (item.type as ServerType) || 'audiobookshelf',
-      libraryName: item.library,
-    }));
-  } catch {
-    return [];
+      serverType: (type as ServerType) || 'audiobookshelf',
+      libraryName: library || undefined,
+    });
   }
+  return results;
 }
 
 function getSavedConfigs(): SavedConfig[] {
