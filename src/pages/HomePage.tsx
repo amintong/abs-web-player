@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Headphones, Clock, ChevronRight, Search, Settings } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
@@ -171,15 +171,12 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, [activeLibraryId]);
 
-  // 继续收听 — 仅当 mediaProgress 变化时刷新
-  const prevProgressRef = useRef(mediaProgress);
+  // 继续收听 — mediaProgress 变化时刷新
   useEffect(() => {
-    if (prevProgressRef.current === mediaProgress) return;
-    prevProgressRef.current = mediaProgress;
-
     if (!mediaProgress || mediaProgress.length === 0) { setContinueItems([]); return; }
 
     const progress = mediaProgress.filter(p => p.currentTime > 0);
+    let cancelled = false;
     Promise.all(
       progress.slice(0, 10).map(async (p) => {
         try {
@@ -187,7 +184,8 @@ export default function HomePage() {
           return { progress: p, item };
         } catch { return null; }
       })
-    ).then(items => setContinueItems(items.filter(Boolean) as { progress: ABSProgress; item: ABSMediaItem }[]));
+    ).then(items => { if (!cancelled) setContinueItems(items.filter(Boolean) as { progress: ABSProgress; item: ABSMediaItem }[]); });
+    return () => { cancelled = true; };
   }, [mediaProgress]);
 
   const handlePlayItem = (item: ABSMediaItem) => {

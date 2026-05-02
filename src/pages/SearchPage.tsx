@@ -79,17 +79,18 @@ export default function SearchPage() {
     setQuery(q);
     if (q.trim().length < 2) { setResults([]); return; }
 
-    if (allItems.length === 0 && activeLibraryId) {
+    let items = allItems;
+    if (items.length === 0 && activeLibraryId) {
       setIsLoading(true);
       try {
-        const items = await getLibraryItems(activeLibraryId);
+        items = await getLibraryItems(activeLibraryId);
         setAllItems(items);
       } catch (e) { console.error('Failed to load items:', e); }
       finally { setIsLoading(false); }
     }
 
     const qLower = q.toLowerCase();
-    setResults(allItems.filter((item) =>
+    setResults(items.filter((item) =>
       (item.media?.metadata?.title || '').toLowerCase().includes(qLower) ||
       (item.media?.metadata?.authorName || '').toLowerCase().includes(qLower) ||
       (item.media?.metadata?.narratorName || '').toLowerCase().includes(qLower)
