@@ -60,7 +60,7 @@ function SearchStatus({ isLoading, hasResults, minLen }: {
 }) {
   if (isLoading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
   if (hasResults) return null;
-  if (minLen >= 2) return <div className="flex flex-col items-center justify-center py-20 text-gray-400"><Search className="w-12 h-12 mb-4 opacity-50" /><p>没有找到相关结果</p></div>;
+  if (minLen >= 1) return <div className="flex flex-col items-center justify-center py-20 text-gray-400"><Search className="w-12 h-12 mb-4 opacity-50" /><p>没有找到相关结果</p></div>;
   return <div className="flex flex-col items-center justify-center py-20 text-gray-500"><Search className="w-12 h-12 mb-4 opacity-30" /><p>输入关键词搜索有声书</p></div>;
 }
 
@@ -77,7 +77,7 @@ export default function SearchPage() {
 
   const handleSearch = async (q: string) => {
     setQuery(q);
-    if (q.trim().length < 2) { setResults([]); return; }
+    if (q.trim().length < 1) { setResults([]); return; }
 
     let items = allItems;
     if (items.length === 0 && activeLibraryId) {
