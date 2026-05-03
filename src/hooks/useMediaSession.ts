@@ -8,16 +8,10 @@ export function useMediaSession() {
   const {
     currentItem,
     isPlaying,
-    pause,
-    resume,
-    seek,
-    skipForward,
-    skipBackward,
-    playNextChapter,
-    playPreviousChapter,
   } = usePlayerStore();
   const { skipForwardSeconds, skipBackwardSeconds } = Config.getApp();
 
+  // 设置 metadata
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
@@ -35,20 +29,34 @@ export function useMediaSession() {
     navigator.mediaSession.metadata = metadata;
   }, [currentItem]);
 
+  // 注册 action handlers — 直接调用 store 方法避免闭包陷阱
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
 
-    navigator.mediaSession.setActionHandler('play', () => { isPlaying ? pause() : resume(); });
-    navigator.mediaSession.setActionHandler('pause', () => pause());
-    navigator.mediaSession.setActionHandler('seekbackward', () => skipBackward(skipBackwardSeconds));
-    navigator.mediaSession.setActionHandler('seekforward', () => skipForward(skipForwardSeconds));
-    navigator.mediaSession.setActionHandler('previoustrack', () => playPreviousChapter());
-    navigator.mediaSession.setActionHandler('nexttrack', () => playNextChapter());
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.seekTime !== undefined) seek(details.seekTime);
+    navigator.mediaSession.setActionHandler('play', () => {
+      usePlayerStore.getState().resume();
     });
-  }, [isPlaying, pause, resume, skipBackward, skipForward, playNextChapter, playPreviousChapter, seek]);
+    navigator.mediaSession.setActionHandler('pause', () => {
+      usePlayerStore.getState().pause();
+    });
+    navigator.mediaSession.setActionHandler('seekbackward', () => {
+      usePlayerStore.getState().skipBackward(skipBackwardSeconds);
+    });
+    navigator.mediaSession.setActionHandler('seekforward', () => {
+      usePlayerStore.getState().skipForward(skipForwardSeconds);
+    });
+    navigator.mediaSession.setActionHandler('previoustrack', () => {
+      usePlayerStore.getState().playPreviousChapter();
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', () => {
+      usePlayerStore.getState().playNextChapter();
+    });
+    navigator.mediaSession.setActionHandler('seekto', (details) => {
+      if (details.seekTime !== undefined) usePlayerStore.getState().seek(details.seekTime);
+    });
+  }, []);
 
+  // 同步 playbackState
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';

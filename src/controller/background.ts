@@ -88,25 +88,29 @@ export function initBackground() {
   playerLog('background', '后台事件监听已注册（常驻）');
 }
 
-/** iOS 锁屏返回后 audio 被暂停，尝试恢复 */
+/** iOS 锁屏返回后 audio 可能被系统暂停，尝试恢复 */
 function recoverFromBackground(audio: HTMLAudioElement) {
   if (!audio.src) return;
   const storeFn = getStore;
   if (!storeFn) return;
   const store = storeFn();
+  const s = store.getState();
+
+  // 如果用户主动暂停过（store.isPlaying === false），不自动恢复
+  if (!s.isPlaying) return;
 
   if (!audio.paused) {
-    store.setState({ isPlaying: true });
+    // audio 仍在播放，无需恢复
     return;
   }
 
+  // store 认为在播放但 audio 被系统暂停了 → 恢复
   const timeBeforePlay = audio.currentTime;
   const token = ++restoreGen;
   const promise = audio.play();
 
   if (promise === undefined) {
     if (token !== restoreGen) return;
-    store.setState({ isPlaying: true });
     return;
   }
 
@@ -119,8 +123,7 @@ function recoverFromBackground(audio: HTMLAudioElement) {
       playerLog('background', `⚠️ currentTime 重置 · ${ctAfter.toFixed(1)}s → ${timeBeforePlay.toFixed(1)}s`);
     }
 
-    // ★ 只设置 isPlaying=true，TimerScheduler 会自动启动所有定时任务
-    store.setState({ isPlaying: true });
+    playerLog('background', `后台恢复播放成功 · ct=${audio.currentTime.toFixed(1)}s`);
   }).catch((err) => {
     if (token !== restoreGen) return;
     store.setState({ isPlaying: false });
