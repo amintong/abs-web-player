@@ -80,6 +80,9 @@ let sleepTimerId: ReturnType<typeof setInterval> | null = null;
 
 let schedulerInterval: ReturnType<typeof setInterval> | null = null;
 let lastWasPlaying = false;
+/** 延迟关闭定时器：暂停后 30s 才关，给 iOS 锁屏恢复留窗口 */
+let shutdownTimeout: ReturnType<typeof setTimeout> | null = null;
+const SHUTDOWN_DELAY = 30_000; // 30 秒
 
 /** 启动调度器（幂等，应用启动时调用一次） */
 export function initScheduler() {
@@ -101,8 +104,8 @@ export function destroyScheduler() {
 /**
  * 核心轮询：对比上一次状态，只在状态翻转时执行启停。
  *
- * 上升沿 (!playing → playing): 启动全部定时任务
- * 下降沿 (playing → !playing): 关闭全部定时任务
+ * 上升沿 (!playing → playing): 立即启动全部定时任务，取消延迟关闭
+ * 下降沿 (playing → !playing): 延迟 30s 后关闭，期间恢复播放可取消
  * 平稳态: 无操作
  */
 function tick() {
@@ -111,9 +114,26 @@ function tick() {
   const nowPlaying = s.isPlaying && !!s.currentItem && !!s.currentChapter;
 
   if (nowPlaying && !lastWasPlaying) {
+    // 恢复播放：取消延迟关闭，立即启动
+    if (shutdownTimeout) {
+      clearTimeout(shutdownTimeout);
+      shutdownTimeout = null;
+      deps().log('lifecycle', '取消延迟关闭，恢复播放');
+    }
     startAllTimers();
   } else if (!nowPlaying && lastWasPlaying) {
-    shutdownAllTimers();
+    // 暂停：延迟 30s 关闭定时器（给 iOS 锁屏恢复留窗口）
+    if (!shutdownTimeout) {
+      deps().log('lifecycle', `暂停 → ${SHUTDOWN_DELAY / 1000}s 后关闭定时器`);
+      shutdownTimeout = setTimeout(() => {
+        shutdownTimeout = null;
+        const current = deps().getStoreState();
+        // 再次检查：如果已经恢复播放了，不关闭
+        if (!current.isPlaying) {
+          shutdownAllTimers();
+        }
+      }, SHUTDOWN_DELAY);
+    }
   }
 
   lastWasPlaying = nowPlaying;
@@ -290,6 +310,7 @@ function formatTime(sec: number): string {
  * 调用后会关闭当前定时器并在下一个 tick (≤500ms) 自动重新启动。
  */
 export function restartTimers() {
+  if (shutdownTimeout) { clearTimeout(shutdownTimeout); shutdownTimeout = null; }
   shutdownAllTimers();
   lastWasPlaying = false; // 重置状态，让下次 tick 重新触发上升沿
 }
