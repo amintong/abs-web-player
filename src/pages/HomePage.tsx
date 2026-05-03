@@ -57,11 +57,14 @@ function ContinueCard({ progress, item, onPlay }: {
 }
 
 /** 继续收听区块 */
-function ContinueListening({ items, onPlay }: {
+function ContinueListening({ items, isLoading, onPlay }: {
   items: { progress: { progress: number }; item: any }[];
+  isLoading: boolean;
   onPlay: (item: any) => void;
 }) {
-  if (items.length === 0) return null;
+  // 加载完成且无数据，不占空间
+  if (!isLoading && items.length === 0) return null;
+
   return (
     <section className="HomePage-continue mb-8">
       <div className="flex items-center justify-between px-5 mb-3">
@@ -72,9 +75,20 @@ function ContinueListening({ items, onPlay }: {
       </div>
       <div className="overflow-x-auto hide-scrollbar">
         <div className="flex gap-4 px-5 pb-2">
-          {items.map(({ progress, item }) => (
-            <ContinueCard key={item.id} progress={progress} item={item} onPlay={() => onPlay(item)} />
-          ))}
+          {isLoading ? (
+            // 骨架屏：3 个占位卡片
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-36">
+                <div className="aspect-[3/4] rounded-xl bg-gray-800 animate-pulse mb-2" />
+                <div className="h-3 w-24 bg-gray-800 rounded animate-pulse mb-1.5" />
+                <div className="h-2.5 w-16 bg-gray-800/60 rounded animate-pulse" />
+              </div>
+            ))
+          ) : (
+            items.map(({ progress, item }) => (
+              <ContinueCard key={item.id} progress={progress} item={item} onPlay={() => onPlay(item)} />
+            ))
+          )}
         </div>
       </div>
     </section>
@@ -162,11 +176,13 @@ export default function HomePage() {
   const [recentItems, setRecentItems] = useState<any[]>([]);
   const [continueItems, setContinueItems] = useState<{ progress: { progress: number }; item: any }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [continueLoading, setContinueLoading] = useState(true);
 
   // 从服务端拉取"继续收听"列表，切库时刷新
   useEffect(() => {
     if (!activeLibraryId) return;
     let cancelled = false;
+    setContinueLoading(true);
     getUserProgress(activeLibraryId)
       .then(async (progressList) => {
         if (cancelled) return;
@@ -181,7 +197,8 @@ export default function HomePage() {
         );
         if (!cancelled) setContinueItems(items.filter(Boolean) as { progress: { progress: number }; item: any }[]);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setContinueLoading(false); });
     return () => { cancelled = true; };
   }, [activeLibraryId]);
 
@@ -211,6 +228,7 @@ export default function HomePage() {
 
       <ContinueListening
         items={continueItems}
+        isLoading={continueLoading}
         onPlay={handlePlayItem}
       />
 
