@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { usePlayerStore } from '../controller/playerController';
+import { usePlayerStore, getAudio } from '../controller/playerController';
 import { getCoverUrl } from '../api/audiobookshelf';
 import { getAuthorName, getTitle } from '../utils/helpers';
 import { Config } from '../utils/configManager';
+import { playerLog, playerWarn } from '../utils/playerLogger';
 
 export function useMediaSession() {
   const {
@@ -29,16 +30,33 @@ export function useMediaSession() {
     navigator.mediaSession.metadata = metadata;
   }, [currentItem]);
 
-  // 注册 action handlers — 直接调用 store 方法避免闭包陷阱
+  // 注册 action handlers
+  // ★ play/pause 直接操作 audio 元素，不经过 store 的 resume/pause
+  //   避免 bumpRestoreGen 和 background recovery 互相打架
+  //   iOS 锁屏下必须尽可能同步直接地调用 audio.play()
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
+    const audio = getAudio();
 
     navigator.mediaSession.setActionHandler('play', () => {
-      usePlayerStore.getState().resume();
+      playerLog('lifecycle', '[MediaSession] play 触发');
+      const promise = audio.play();
+      if (promise) {
+        promise.then(() => {
+          usePlayerStore.setState({ isPlaying: true });
+          playerLog('lifecycle', '[MediaSession] play 成功');
+        }).catch((err) => {
+          playerWarn('lifecycle', '[MediaSession] play 失败', { error: (err as Error).message });
+        });
+      }
     });
+
     navigator.mediaSession.setActionHandler('pause', () => {
-      usePlayerStore.getState().pause();
+      playerLog('lifecycle', '[MediaSession] pause 触发');
+      audio.pause();
+      usePlayerStore.setState({ isPlaying: false });
     });
+
     navigator.mediaSession.setActionHandler('seekbackward', () => {
       usePlayerStore.getState().skipBackward(skipBackwardSeconds);
     });

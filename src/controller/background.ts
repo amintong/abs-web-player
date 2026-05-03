@@ -96,15 +96,21 @@ function recoverFromBackground(audio: HTMLAudioElement) {
   const store = storeFn();
   const s = store.getState();
 
+  playerLog('background', `页面恢复可见 · isPlaying=${s.isPlaying} · audioPaused=${audio.paused} · ct=${audio.currentTime.toFixed(1)}s`);
+
   // 如果用户主动暂停过（store.isPlaying === false），不自动恢复
-  if (!s.isPlaying) return;
+  if (!s.isPlaying) {
+    playerLog('background', '用户已暂停，跳过自动恢复');
+    return;
+  }
 
   if (!audio.paused) {
-    // audio 仍在播放，无需恢复
+    playerLog('background', 'audio 仍在播放，无需恢复');
     return;
   }
 
   // store 认为在播放但 audio 被系统暂停了 → 恢复
+  playerLog('background', '检测到 audio 被系统暂停，尝试恢复...');
   const timeBeforePlay = audio.currentTime;
   const token = ++restoreGen;
   const promise = audio.play();

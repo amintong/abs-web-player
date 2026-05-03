@@ -383,13 +383,16 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   resume: () => {
     bumpRestoreGen();
-    getAudio().play()
+    const audio = getAudio();
+    playerLog('lifecycle', `恢复播放 · paused=${audio.paused} · ct=${audio.currentTime.toFixed(1)}s · src=${audio.src ? '有' : '无'}`);
+    audio.play()
       .then(() => {
-        // ★ 只设置 isPlaying=true，Scheduler 检测到后会自动启动所有定时任务
         set({ isPlaying: true });
       })
-      .catch(() => {});
-    playerLog('lifecycle', '恢复播放');
+      .catch((err) => {
+        playerWarn('lifecycle', `恢复播放失败`, { error: (err as Error).message || 'unknown' });
+        set({ isPlaying: false });
+      });
   },
 
   stop: () => {
