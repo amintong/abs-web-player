@@ -25,30 +25,30 @@ function LibraryHeader({
   ];
 
   return (
-    <header className="Library-header sticky top-0 z-40 glass bg-black/80 border-b border-white/5">
+    <header className="Library-header sticky top-0 z-40 glass bg-[var(--color-bg-glass)] border-b border-[var(--color-border)]">
       <div className="flex items-center gap-4 px-4 h-14">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors" aria-label="返回">
-          <ArrowLeft className="w-5 h-5 text-white" />
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors" aria-label="返回">
+          <ArrowLeft className="w-5 h-5 text-[var(--color-text)]" />
         </button>
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-secondary)]" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="搜索有声书..."
-            className="w-full bg-white/10 rounded-full py-2 pl-10 pr-4 text-white placeholder-gray-400 text-sm focus:outline-none focus:bg-white/20 transition-colors"
+            className="w-full bg-[var(--color-bg-input)] rounded-full py-2 pl-10 pr-4 text-[var(--color-text)] placeholder-gray-400 text-sm focus:outline-none focus:bg-[var(--color-bg-active)] transition-colors"
           />
         </div>
-        <button onClick={onToggleView} className="p-2 rounded-full hover:bg-white/10 transition-colors" aria-label="切换视图">
-          {viewMode === 'grid' ? <List className="w-5 h-5 text-white" /> : <Grid className="w-5 h-5 text-gray-400" />}
+        <button onClick={onToggleView} className="p-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors" aria-label="切换视图">
+          {viewMode === 'grid' ? <List className="w-5 h-5 text-[var(--color-text)]" /> : <Grid className="w-5 h-5 text-[var(--color-text-secondary)]" />}
         </button>
       </div>
       <div className="flex gap-2 px-4 py-2 overflow-x-auto hide-scrollbar">
         {sortOptions.map((opt) => (
           <button key={opt.value} onClick={() => onSortChange(opt.value)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              sortBy === opt.value ? 'bg-white text-black' : 'bg-white/10 text-gray-300 hover:bg-white/20'
+              sortBy === opt.value ? 'bg-white text-black' : 'bg-[var(--color-bg-input)] text-gray-300 hover:bg-[var(--color-bg-active)]'
             }`}
           >{opt.label}</button>
         ))}
@@ -61,14 +61,14 @@ function LibraryHeader({
 function ListItem({ item }: { item: any }) {
   const navigate = useNavigate();
   return (
-    <button onClick={() => navigate(`/item/${item.id}`)} className="Library-listItem w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10">
-      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+    <button onClick={() => navigate(`/item/${item.id}`)} className="Library-listItem w-full flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--color-bg-card)] transition-colors active:bg-[var(--color-bg-input)]">
+      <div className="w-14 h-14 rounded-lg overflow-hidden bg-[var(--color-bg-card)] flex-shrink-0">
         <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
-        <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>
-        <p className="text-sm text-gray-400 truncate">{getAuthorName(item)}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{formatDuration(getDuration(item))}</p>
+        <h3 className="text-[var(--color-text)] font-medium truncate">{getTitle(item)}</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] truncate">{getAuthorName(item)}</p>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">{formatDuration(getDuration(item))}</p>
       </div>
     </button>
   );
@@ -79,11 +79,11 @@ function GridCard({ item }: { item: any }) {
   const navigate = useNavigate();
   return (
     <button onClick={() => navigate(`/item/${item.id}`)} className="Library-gridCard group text-left">
-      <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-gray-800">
+      <div className="aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-[var(--color-bg-card)]">
         <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
-      <h3 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">{getTitle(item)}</h3>
-      <p className="text-xs text-gray-400 truncate">{getAuthorName(item)}</p>
+      <h3 className="text-sm font-medium text-[var(--color-text)] truncate group-hover:text-purple-400 transition-colors">{getTitle(item)}</h3>
+      <p className="text-xs text-[var(--color-text-secondary)] truncate">{getAuthorName(item)}</p>
     </button>
   );
 }
@@ -91,7 +91,7 @@ function GridCard({ item }: { item: any }) {
 /** 空状态 */
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+    <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-secondary)]">
       <Headphones className="w-12 h-12 mb-4 opacity-50" />
       <p>没有找到有声书</p>
     </div>

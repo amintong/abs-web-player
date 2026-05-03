@@ -23,8 +23,10 @@ export interface BookSkipConfig {
   autoSkipOutro: boolean;
 }
 
+export type ThemeMode = 'dark' | 'light' | 'system';
+
 export interface AppConfig {
-  isDarkMode: boolean;
+  theme: ThemeMode;
   skipForwardSeconds: number;
   skipBackwardSeconds: number;
   defaultIntroSeconds: number;
@@ -45,7 +47,7 @@ interface StoredData {
 // ---------- 默认值 ----------
 
 const DEFAULT_APP: AppConfig = {
-  isDarkMode: true,
+  theme: 'system',
   skipForwardSeconds: 30,
   skipBackwardSeconds: 10,
   defaultIntroSeconds: 15,
@@ -86,6 +88,16 @@ class _ConfigManager {
     const saved = this.loadFromStorage();
     if (saved) {
       this.data = saved;
+      // 兼容旧配置：isDarkMode → theme
+      if ((this.data.app as any).isDarkMode !== undefined && !(this.data.app as any).theme) {
+        this.data.app.theme = (this.data.app as any).isDarkMode ? 'dark' : 'light';
+        delete (this.data.app as any).isDarkMode;
+        this.saveToStorage();
+      }
+      if (!this.data.app.theme) {
+        this.data.app.theme = 'system';
+        this.saveToStorage();
+      }
     } else {
       // 首次加载：尝试从旧存储迁移
       const migrated = this.migrateFromOldStorage();
@@ -186,7 +198,7 @@ class _ConfigManager {
         const old = JSON.parse(oldAppRaw);
         const { state } = old;
         if (state) {
-          if (typeof state.isDarkMode === 'boolean') data.app.isDarkMode = state.isDarkMode;
+          if (typeof state.isDarkMode === 'boolean') data.app.theme = state.isDarkMode ? 'dark' : 'light';
           if (typeof state.skipForwardSeconds === 'number') data.app.skipForwardSeconds = state.skipForwardSeconds;
           if (typeof state.skipBackwardSeconds === 'number') data.app.skipBackwardSeconds = state.skipBackwardSeconds;
           if (typeof state.playbackRate === 'number') data.player.playbackRate = state.playbackRate;

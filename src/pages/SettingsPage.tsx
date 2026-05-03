@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Moon, Sun, LogOut, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug, Headphones } from 'lucide-react';
+import { ArrowLeft, Moon, Sun, Monitor, LogOut, Info, TimerReset, SkipBack, SkipForward, RefreshCw, Trash2, Terminal, Copy, Bug, Headphones } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { usePlayerStore } from '../controller/playerController';
 import { logout } from '../api/audiobookshelf';
 import { checkForUpdates, applyUpdate } from '../sw';
 import { AudioCache } from '../utils/audioCache';
-import { useAppConfig } from '../utils/configManager';
+import { useAppConfig, type ThemeMode } from '../utils/configManager';
 import { clearLogs, subscribeLogs, type LogEntry, type LogModule } from '../utils/playerLogger';
 import SlideUpPanel from '../components/SlideUpPanel';
 
@@ -56,7 +56,7 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
         {(Object.keys(MODULE_LABELS) as (LogModule | 'all')[]).map((key) => (
           <button key={key} onClick={() => onFilterChange(key)}
             className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-              filter === key ? 'bg-purple-600 text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'
+              filter === key ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-active)]'
             }`}
           >{MODULE_LABELS[key]}</button>
         ))}
@@ -64,30 +64,30 @@ function LogViewer({ logs, filter, onFilterChange, onClear }: LogViewerProps) {
 
       {/* 操作栏 */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={handleCopy} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-gray-300 hover:bg-white/20">
+        <button onClick={handleCopy} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-bg-input)] text-xs text-gray-300 hover:bg-[var(--color-bg-active)]">
           <Copy className="w-3 h-3" />复制全部
         </button>
         <button onClick={onClear} className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/10 text-xs text-red-400 hover:bg-red-500/20">
           <Trash2 className="w-3 h-3" />清空
         </button>
-        <span className="ml-auto text-xs text-gray-600">显示 {filtered.length} / {logs.length}</span>
+        <span className="ml-auto text-xs text-[var(--color-text-muted)]">显示 {filtered.length} / {logs.length}</span>
       </div>
 
       {/* 日志列表 */}
       {reversed.length === 0 ? (
-        <div className="py-12 text-center text-gray-500 text-sm">暂无日志记录</div>
+        <div className="py-12 text-center text-[var(--color-text-tertiary)] text-sm">暂无日志记录</div>
       ) : (
         <div className="overflow-y-auto max-h-[50vh] space-y-0.5 rounded-xl bg-black/30 p-2" style={{ paddingBottom: '0px' }}>
           {reversed.map((entry) => (
-            <div key={entry.id} className="flex items-start gap-2 py-1.5 px-2 rounded-lg hover:bg-white/5 text-left">
-              <span className="text-[10px] text-gray-600 font-mono flex-shrink-0 pt-0.5 w-16">{entry.timestamp}</span>
+            <div key={entry.id} className="flex items-start gap-2 py-1.5 px-2 rounded-lg hover:bg-[var(--color-bg-card)] text-left">
+              <span className="text-[10px] text-[var(--color-text-muted)] font-mono flex-shrink-0 pt-0.5 w-16">{entry.timestamp}</span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${MODULE_COLORS[entry.module] || MODULE_COLORS.system}`}>
                 {MODULE_LABELS[entry.module]}
               </span>
               <span className={`text-xs flex-1 min-w-0 leading-tight ${LEVEL_COLORS[entry.level] || LEVEL_COLORS.info}`}>
                 {entry.message}
                 {entry.data && (
-                  <span className="text-[10px] text-gray-600 ml-1 font-mono">{JSON.stringify(entry.data)}</span>
+                  <span className="text-[10px] text-[var(--color-text-muted)] ml-1 font-mono">{JSON.stringify(entry.data)}</span>
                 )}
               </span>
             </div>
@@ -155,34 +155,34 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col">
-      <header className="sticky top-0 z-40 glass bg-black/80 border-b border-white/5">
+      <header className="sticky top-0 z-40 glass bg-[var(--color-bg-glass)] border-b border-[var(--color-border)]">
         <div className="flex items-center gap-4 px-4 h-14">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-white" />
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+            <ArrowLeft className="w-5 h-5 text-[var(--color-text)]" />
           </button>
-          <h1 className="text-lg font-semibold text-white">设置</h1>
+          <h1 className="text-lg font-semibold text-[var(--color-text)]">设置</h1>
         </div>
       </header>
 
       <div className="px-4 py-6 space-y-6">
         {/* 账号与媒体库 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
-            <h2 className="text-sm font-medium text-gray-400">媒体库</h2>
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">媒体库</h2>
           </div>
           <div className="px-4 py-4 space-y-3">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
-                <Headphones className="w-6 h-6 text-white" />
+                <Headphones className="w-6 h-6 text-[var(--color-text)]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-medium truncate">
+                <p className="text-[var(--color-text)] font-medium truncate">
                   {libraries.find(l => l.id === activeLibraryId)?.name || '未选择'}
                 </p>
-                <p className="text-xs text-gray-400 truncate">{user?.username}</p>
+                <p className="text-xs text-[var(--color-text-secondary)] truncate">{user?.username}</p>
               </div>
             </div>
-            <div className="space-y-1.5 text-xs text-gray-500">
+            <div className="space-y-1.5 text-xs text-[var(--color-text-tertiary)]">
               <div className="flex justify-between">
                 <span>类型</span>
                 <span className="text-gray-300 capitalize">{localStorage.getItem('abs_server_type') || 'audiobookshelf'}</span>
@@ -200,24 +200,24 @@ export default function SettingsPage() {
                 <span className="text-gray-300">{libraries.find(l => l.id === activeLibraryId)?.name || '-'}</span>
               </div>
             </div>
-            <p className="text-[10px] text-gray-600 pt-1">切换账号可选择其他服务器或媒体库</p>
+            <p className="text-[10px] text-[var(--color-text-muted)] pt-1">切换账号可选择其他服务器或媒体库</p>
           </div>
         </div>
 
         {/* 播放设置 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
-            <h2 className="text-sm font-medium text-gray-400">播放设置</h2>
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">播放设置</h2>
           </div>
 
           <div className="px-4 py-4">
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-white">播放倍速</span>
+              <span className="text-[var(--color-text)]">播放倍速</span>
             </div>
             <div className="flex gap-2 flex-wrap">
               {playbackRates.map((rate) => (
                 <button key={rate} onClick={() => setPlaybackRate(rate)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${playbackRate === rate ? 'bg-purple-600 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${playbackRate === rate ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-gray-300 hover:bg-[var(--color-bg-active)]'}`}
                 >{rate}x</button>
               ))}
             </div>
@@ -225,53 +225,53 @@ export default function SettingsPage() {
         </div>
 
         {/* 片头片尾全局默认值 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
             <div className="flex items-center gap-2">
-              <TimerReset className="w-4 h-4 text-gray-400" />
-              <h2 className="text-sm font-medium text-gray-400">片头片尾默认值</h2>
+              <TimerReset className="w-4 h-4 text-[var(--color-text-secondary)]" />
+              <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">片头片尾默认值</h2>
             </div>
           </div>
 
           <div className="px-4 py-4 space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-sm text-white">默认跳过片头</label>
+              <label className="text-sm text-[var(--color-text)]">默认跳过片头</label>
               <div className="flex items-center gap-2">
                 <input
                   type="text" inputMode="decimal" pattern="[0-9]*\.?[0-9]*"
                   value={editDefaultIntro}
                   onChange={(e) => setEditDefaultIntro(e.target.value.replace(/[^0-9.]/g, ''))}
                   onBlur={() => setEditDefaultIntro(String(Math.min(parseFloat(editDefaultIntro) || 0, 300)))}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1.5 text-[var(--color-text)] text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                 />
-                <span className="text-xs text-gray-400">秒</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <label className="text-sm text-white">默认跳过片尾</label>
+              <label className="text-sm text-[var(--color-text)]">默认跳过片尾</label>
               <div className="flex items-center gap-2">
                 <input
                   type="text" inputMode="decimal" pattern="[0-9]*\.?[0-9]*"
                   value={editDefaultOutro}
                   onChange={(e) => setEditDefaultOutro(e.target.value.replace(/[^0-9.]/g, ''))}
                   onBlur={() => setEditDefaultOutro(String(Math.min(parseFloat(editDefaultOutro) || 0, 300)))}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1.5 text-[var(--color-text)] text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                 />
-                <span className="text-xs text-gray-400">秒</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
             <button onClick={handleSaveDefaults}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl py-3 mt-2"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-[var(--color-text)] font-medium rounded-xl py-3 mt-2"
             >保存默认设置</button>
           </div>
         </div>
 
         {/* 快进/快退时间 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
             <div className="flex items-center gap-2">
-              <SkipForward className="w-4 h-4 text-gray-400" />
-              <h2 className="text-sm font-medium text-gray-400">快进/快退</h2>
+              <SkipForward className="w-4 h-4 text-[var(--color-text-secondary)]" />
+              <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">快进/快退</h2>
             </div>
           </div>
 
@@ -279,7 +279,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <SkipForward className="w-4 h-4 text-purple-400" />
-                <label className="text-sm text-white">快进</label>
+                <label className="text-sm text-[var(--color-text)]">快进</label>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -287,15 +287,15 @@ export default function SettingsPage() {
                   value={editSkipForward}
                   onChange={(e) => setEditSkipForward(e.target.value.replace(/[^0-9]/g, ''))}
                   onBlur={() => setEditSkipForward(String(Math.max(5, Math.min(parseInt(editSkipForward) || 30, 300))))}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1.5 text-[var(--color-text)] text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                 />
-                <span className="text-xs text-gray-400">秒</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <SkipBack className="w-4 h-4 text-blue-400" />
-                <label className="text-sm text-white">快退</label>
+                <label className="text-sm text-[var(--color-text)]">快退</label>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -303,42 +303,55 @@ export default function SettingsPage() {
                   value={editSkipBackward}
                   onChange={(e) => setEditSkipBackward(e.target.value.replace(/[^0-9]/g, ''))}
                   onBlur={() => setEditSkipBackward(String(Math.max(5, Math.min(parseInt(editSkipBackward) || 10, 120))))}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1.5 text-[var(--color-text)] text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                 />
-                <span className="text-xs text-gray-400">秒</span>
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
             <button onClick={handleSaveSkipTimes}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl py-3 mt-2"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-[var(--color-text)] font-medium rounded-xl py-3 mt-2"
             >保存快进/快退设置</button>
           </div>
         </div>
 
         {/* 外观 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
-            <h2 className="text-sm font-medium text-gray-400">外观</h2>
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">外观</h2>
           </div>
-          <button onClick={() => updateApp({ isDarkMode: !appConfig.isDarkMode })} className="w-full flex items-center justify-between px-4 py-4 hover:bg-white/5 transition-colors">
-            <div className="flex items-center gap-3">
-              {appConfig.isDarkMode ? <Moon className="w-5 h-5 text-gray-400" /> : <Sun className="w-5 h-5 text-gray-400" />}
-              <span className="text-white">深色模式</span>
+          <div className="px-4 py-4">
+            <div className="flex gap-2">
+              {([
+                { value: 'light' as ThemeMode, label: '浅色', icon: Sun },
+                { value: 'dark' as ThemeMode, label: '深色', icon: Moon },
+                { value: 'system' as ThemeMode, label: '跟随系统', icon: Monitor },
+              ]).map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => updateApp({ theme: value })}
+                  className={`flex-1 flex flex-col items-center gap-2 py-3 rounded-xl text-sm font-medium transition-colors ${
+                    appConfig.theme === value
+                      ? 'bg-purple-600 text-[var(--color-text)]'
+                      : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-hover)]'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className={`w-12 h-7 rounded-full p-1 transition-colors ${appConfig.isDarkMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
-              <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${appConfig.isDarkMode ? 'translate-x-5' : 'translate-x-0'}`} />
-            </div>
-          </button>
+          </div>
         </div>
 
         {/* 调试模式 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
-            <h2 className="text-sm font-medium text-gray-400">调试</h2>
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">调试</h2>
           </div>
-          <button onClick={() => setDebugMode(!debugMode)} className="w-full flex items-center justify-between px-4 py-4 hover:bg-white/5 transition-colors">
+          <button onClick={() => setDebugMode(!debugMode)} className="w-full flex items-center justify-between px-4 py-4 hover:bg-[var(--color-bg-card)] transition-colors">
             <div className="flex items-center gap-3">
-              <Bug className="w-5 h-5 text-gray-400" />
-              <span className="text-white">调试面板</span>
+              <Bug className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              <span className="text-[var(--color-text)]">调试面板</span>
             </div>
             <div className={`w-12 h-7 rounded-full p-1 transition-colors ${debugMode ? 'bg-purple-600' : 'bg-gray-600'}`}>
               <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${debugMode ? 'translate-x-5' : 'translate-x-0'}`} />
@@ -347,16 +360,16 @@ export default function SettingsPage() {
         </div>
 
         {/* 关于 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
-            <h2 className="text-sm font-medium text-gray-400">关于</h2>
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">关于</h2>
           </div>
           <div className="px-4 py-4">
             <div className="flex items-center gap-3 mb-3">
-              <Info className="w-5 h-5 text-gray-400" />
+              <Info className="w-5 h-5 text-[var(--color-text-secondary)]" />
               <div>
-                <p className="text-white">Audiobookshelf Player</p>
-                <p className="text-xs text-gray-500">版本 {__APP_VERSION__}</p>
+                <p className="text-[var(--color-text)]">Audiobookshelf Player</p>
+                <p className="text-xs text-[var(--color-text-tertiary)]">版本 {__APP_VERSION__}</p>
               </div>
             </div>
             <button onClick={handleCheckUpdate} disabled={updateStatus === '检查中...'}
@@ -369,18 +382,18 @@ export default function SettingsPage() {
         </div>
 
         {/* 缓存管理 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
             <div className="flex items-center gap-2">
-              <Trash2 className="w-4 h-4 text-gray-400" />
-              <h2 className="text-sm font-medium text-gray-400">缓存管理</h2>
+              <Trash2 className="w-4 h-4 text-[var(--color-text-secondary)]" />
+              <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">缓存管理</h2>
             </div>
           </div>
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-white text-sm">音频缓存</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-[var(--color-text)] text-sm">音频缓存</p>
+                <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                   {cacheInfo.entries > 0
                     ? `${cacheInfo.entries} 个章节，约 ${cacheInfo.totalMB} MB`
                     : '当前无缓存'}
@@ -396,34 +409,34 @@ export default function SettingsPage() {
                 <Trash2 className="w-4 h-4" />清除缓存
               </button>
             </div>
-            <p className="text-xs text-gray-600">缓存由 LRU 自动管理（上限 300MB），通常无需手动清理。如遇到章节切换卡顿可尝试。</p>
+            <p className="text-xs text-[var(--color-text-muted)]">缓存由 LRU 自动管理（上限 300MB），通常无需手动清理。如遇到章节切换卡顿可尝试。</p>
           </div>
         </div>
 
         {/* 播放器日志 */}
-        <div className="bg-white/5 rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/5">
+        <div className="bg-[var(--color-bg-card)] rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--color-border)]">
             <div className="flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-gray-400" />
-              <h2 className="text-sm font-medium text-gray-400">播放器日志</h2>
+              <Terminal className="w-4 h-4 text-[var(--color-text-secondary)]" />
+              <h2 className="text-sm font-medium text-[var(--color-text-secondary)]">播放器日志</h2>
             </div>
           </div>
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-[var(--color-text-secondary)]">
                 {logs.length > 0
                   ? `${logs.length} 条记录 · 最近 ${logs[logs.length - 1]?.timestamp || '-'}`
                   : '暂无日志'}
               </p>
               <button onClick={() => setShowLogs(true)}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  logs.length > 0 ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white/5 text-gray-600'
+                  logs.length > 0 ? 'bg-[var(--color-bg-input)] text-[var(--color-text)] hover:bg-[var(--color-bg-active)]' : 'bg-[var(--color-bg-card)] text-[var(--color-text-muted)]'
                 }`}
               >
                 {logs.length > 0 ? '查看' : '空闲'}
               </button>
             </div>
-            <p className="text-xs text-gray-600">播放、章节切换、片头片尾跳过、后台恢复等关键事件。</p>
+            <p className="text-xs text-[var(--color-text-muted)]">播放、章节切换、片头片尾跳过、后台恢复等关键事件。</p>
           </div>
         </div>
 
@@ -436,7 +449,7 @@ export default function SettingsPage() {
 
         {/* 切换账号 */}
         <button onClick={handleLogout}
-          className="w-full flex items-center justify-center gap-2 bg-white/5 text-purple-400 font-medium py-4 rounded-2xl hover:bg-white/10 transition-colors"
+          className="w-full flex items-center justify-center gap-2 bg-[var(--color-bg-card)] text-purple-400 font-medium py-4 rounded-2xl hover:bg-[var(--color-bg-input)] transition-colors"
         >
           <LogOut className="w-5 h-5" />切换账号
         </button>

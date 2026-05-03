@@ -111,7 +111,7 @@ export default function SlideUpPanel({ visible, onClose, children, title }: Slid
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        className="relative w-full bg-gray-900 rounded-t-3xl p-4"
+        className="relative w-full bg-[var(--color-bg-secondary)] rounded-t-3xl p-4"
         style={{
           paddingBottom: '0px',
           transform: `translateY(${translateY}px)`,
@@ -121,7 +121,7 @@ export default function SlideUpPanel({ visible, onClose, children, title }: Slid
         {/* 拖拽指示器 */}
         <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4 cursor-grab active:cursor-grabbing" />
         {title && (
-          <h3 className="text-lg font-semibold text-white text-center mb-4">{title}</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text)] text-center mb-4">{title}</h3>
         )}
         {children}
       </div>

@@ -12,10 +12,10 @@ import CoverImage from '../components/CoverImage';
 /** 顶部导航栏 */
 function DetailHeader({ onBack }: { onBack: () => void }) {
   return (
-    <header className="Detail-header sticky top-0 z-40 glass bg-black/90 border-b border-white/5">
+    <header className="Detail-header sticky top-0 z-40 glass bg-[var(--color-bg-glass)] border-b border-[var(--color-border)]">
       <div className="flex items-center gap-4 px-4 h-14">
-        <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors" aria-label="返回">
-          <ArrowLeft className="w-5 h-5 text-white" />
+        <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors" aria-label="返回">
+          <ArrowLeft className="w-5 h-5 text-[var(--color-text)]" />
         </button>
       </div>
     </header>
@@ -27,7 +27,7 @@ function DetailCover({ itemId, title }: { itemId: string; title: string }) {
   return (
     <div className="Detail-cover relative px-6 pt-5 pb-5">
       <div
-        className="mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800"
+        className="mx-auto rounded-2xl overflow-hidden shadow-2xl bg-[var(--color-bg-card)]"
         style={{ width: '38vw', height: '38vw' }}
       >
         <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
@@ -43,10 +43,10 @@ function DetailInfo({ title, author, narrator, duration, fileCount, chapterCount
 }) {
   return (
     <div className="Detail-info px-6 text-center mb-5">
-      <h1 className="text-xl font-bold text-white mb-1.5 line-clamp-2">{title}</h1>
-      <p className="text-gray-400 text-sm">{author}</p>
-      {narrator && <p className="text-xs text-gray-500 mt-0.5">朗读: {narrator}</p>}
-      <div className="flex items-center justify-center gap-3 mt-2 text-xs text-gray-400">
+      <h1 className="text-xl font-bold text-[var(--color-text)] mb-1.5 line-clamp-2">{title}</h1>
+      <p className="text-[var(--color-text-secondary)] text-sm">{author}</p>
+      {narrator && <p className="text-xs text-[var(--color-text-tertiary)] mt-0.5">朗读: {narrator}</p>}
+      <div className="flex items-center justify-center gap-3 mt-2 text-xs text-[var(--color-text-secondary)]">
         <span>{formatDuration(duration || 0)}</span>
         <span>&middot;</span>
         <span>{fileCount} 个文件</span>
@@ -83,23 +83,23 @@ const ChapterRow = React.forwardRef<HTMLButtonElement, {
       ref={ref}
       onClick={onClick}
       className={`ChapterRow w-full flex items-center gap-4 p-3 rounded-xl transition-colors ${
-        isCurrent ? 'bg-purple-600/20 ring-1 ring-purple-500/40' : 'hover:bg-white/5 active:bg-white/10'
+        isCurrent ? 'bg-purple-600/20 ring-1 ring-purple-500/40' : 'hover:bg-[var(--color-bg-card)] active:bg-[var(--color-bg-input)]'
       }`}
     >
       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-        isCompleted ? 'bg-green-500/20' : isCurrent ? 'bg-purple-600 text-white' : 'bg-white/10'
+        isCompleted ? 'bg-green-500/20' : isCurrent ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)]'
       }`}>
         {isCompleted ? (
           <Check className="w-4 h-4 text-green-400" />
         ) : (
-          <span className={`text-sm font-medium ${isCurrent ? 'text-white' : 'text-gray-400'}`}>{index + 1}</span>
+          <span className={`text-sm font-medium ${isCurrent ? 'text-[var(--color-text)]' : 'text-[var(--color-text-secondary)]'}`}>{index + 1}</span>
         )}
       </div>
       <div className="flex-1 text-left min-w-0">
-        <p className={`truncate ${isCurrent ? 'text-purple-300 font-medium' : isCompleted ? 'text-gray-500' : 'text-white'}`}>
+        <p className={`truncate ${isCurrent ? 'text-purple-300 font-medium' : isCompleted ? 'text-[var(--color-text-tertiary)]' : 'text-[var(--color-text)]'}`}>
           {chapter.title}
         </p>
-        <p className={`text-xs ${isCompleted ? 'text-gray-600' : 'text-gray-500'}`}>
+        <p className={`text-xs ${isCompleted ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-tertiary)]'}`}>
           {formatTime(chapter.start)} - {formatTime(chEnd)}
         </p>
       </div>
@@ -139,12 +139,12 @@ function ChapterSection({
       {/* 章节标题栏（不随列表滚动） */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-6 py-3 text-white font-medium flex-shrink-0 border-t border-white/5"
+        className="w-full flex items-center justify-between px-6 py-3 text-[var(--color-text)] font-medium flex-shrink-0 border-t border-[var(--color-border)]"
       >
         <div className="flex items-center gap-2">
           <List className="w-5 h-5" />章节列表 ({chapters.length})
         </div>
-        {expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        {expanded ? <ChevronUp className="w-5 h-5 text-[var(--color-text-secondary)]" /> : <ChevronDown className="w-5 h-5 text-[var(--color-text-secondary)]" />}
       </button>
 
       {expanded && (
@@ -198,7 +198,7 @@ export default function ItemDetailPage() {
   }, [itemId]);
 
   if (isLoading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" /></div>;
-  if (!item) return <div className="h-full flex items-center justify-center text-gray-400">未找到该有声书</div>;
+  if (!item) return <div className="h-full flex items-center justify-center text-[var(--color-text-secondary)]">未找到该有声书</div>;
 
   const chapters = getChapters(item);
   const fileCount = getAudioFileCount(item);

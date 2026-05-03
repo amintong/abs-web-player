@@ -13,7 +13,7 @@ import CoverImage from '../components/CoverImage';
 function PageHeader() {
   const navigate = useNavigate();
   return (
-    <header className="HomePage-header sticky top-0 z-40 glass bg-black/80 border-b border-white/5">
+    <header className="HomePage-header sticky top-0 z-40 glass bg-[var(--color-bg-glass)] border-b border-[var(--color-border)]">
       <div className="flex items-center justify-between px-5 h-14">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
@@ -21,11 +21,11 @@ function PageHeader() {
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/search')} aria-label="搜索" className="p-2 rounded-full hover:bg-white/10 transition-colors">
-            <Search className="w-5 h-5 text-gray-400" />
+          <button onClick={() => navigate('/search')} aria-label="搜索" className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] transition-colors">
+            <Search className="w-5 h-5 text-[var(--color-text-secondary)]" />
           </button>
-          <button onClick={() => navigate('/settings')} aria-label="设置" className="p-2 rounded-full hover:bg-white/10 transition-colors">
-            <Settings className="w-5 h-5 text-gray-400" />
+          <button onClick={() => navigate('/settings')} aria-label="设置" className="p-2 rounded-full hover:bg-[var(--color-bg-hover)] transition-colors">
+            <Settings className="w-5 h-5 text-[var(--color-text-secondary)]" />
           </button>
         </div>
       </div>
@@ -42,16 +42,16 @@ function ContinueCard({ progress, item, onPlay }: {
   const title = getTitle(item);
   return (
     <button onClick={onPlay} className="ContinueCard flex-shrink-0 w-36 group">
-      <div className="ContinueCard-cover relative aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-gray-800">
+      <div className="ContinueCard-cover relative aspect-[3/4] rounded-xl overflow-hidden mb-2 bg-[var(--color-bg-card)]">
         <CoverImage src={getCoverUrl(item.id)} alt={title} className="w-full h-full object-cover" />
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-[var(--color-progress-bg)]">
           <div className="h-full bg-purple-500" style={{ width: `${progress.progress * 100}%` }} />
         </div>
       </div>
-      <h3 className="text-sm font-medium text-white truncate group-hover:text-purple-400 transition-colors">
+      <h3 className="text-sm font-medium text-[var(--color-text)] truncate group-hover:text-purple-400 transition-colors">
         {title}
       </h3>
-      {getAuthorName(item) && <p className="text-xs text-gray-400 truncate">{getAuthorName(item)}</p>}
+      {getAuthorName(item) && <p className="text-xs text-[var(--color-text-secondary)] truncate">{getAuthorName(item)}</p>}
     </button>
   );
 }
@@ -62,7 +62,6 @@ function ContinueListening({ items, isLoading, onPlay }: {
   isLoading: boolean;
   onPlay: (item: any) => void;
 }) {
-  // 加载完成且无数据，不占空间
   if (!isLoading && items.length === 0) return null;
 
   return (
@@ -70,18 +69,17 @@ function ContinueListening({ items, isLoading, onPlay }: {
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-purple-400" />
-          <h2 className="text-lg font-semibold text-white">继续收听</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">继续收听</h2>
         </div>
       </div>
       <div className="overflow-x-auto hide-scrollbar">
         <div className="flex gap-4 px-5 pb-2">
           {isLoading ? (
-            // 骨架屏：3 个占位卡片
             Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex-shrink-0 w-36">
-                <div className="aspect-[3/4] rounded-xl bg-gray-800 animate-pulse mb-2" />
-                <div className="h-3 w-24 bg-gray-800 rounded animate-pulse mb-1.5" />
-                <div className="h-2.5 w-16 bg-gray-800/60 rounded animate-pulse" />
+                <div className="aspect-[3/4] rounded-xl bg-[var(--color-skeleton)] animate-pulse mb-2" />
+                <div className="h-3 w-24 bg-[var(--color-skeleton)] rounded animate-pulse mb-1.5" />
+                <div className="h-2.5 w-16 bg-[var(--color-skeleton)] rounded animate-pulse" />
               </div>
             ))
           ) : (
@@ -103,17 +101,17 @@ function MediaItemRow({ item, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="MediaItemRow w-full flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors active:bg-white/10"
+      className="MediaItemRow w-full flex items-center gap-4 p-3 rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors active:bg-[var(--color-bg-active)]"
     >
-      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+      <div className="w-16 h-16 rounded-lg overflow-hidden bg-[var(--color-bg-card)] flex-shrink-0">
         <CoverImage src={getCoverUrl(item.id)} alt={getTitle(item)} className="w-full h-full object-cover" />
       </div>
       <div className="flex-1 text-left min-w-0">
-        <h3 className="text-white font-medium truncate">{getTitle(item)}</h3>
-        <p className="text-sm text-gray-400 truncate">{getAuthorName(item)}</p>
-        <p className="text-xs text-gray-500 mt-1">{formatDuration(getDuration(item))}</p>
+        <h3 className="text-[var(--color-text)] font-medium truncate">{getTitle(item)}</h3>
+        <p className="text-sm text-[var(--color-text-secondary)] truncate">{getAuthorName(item)}</p>
+        <p className="text-xs text-[var(--color-text-tertiary)] mt-1">{formatDuration(getDuration(item))}</p>
       </div>
-      <ChevronRight className="w-5 h-5 text-gray-600 flex-shrink-0" />
+      <ChevronRight className="w-5 h-5 text-[var(--color-text-muted)] flex-shrink-0" />
     </button>
   );
 }
@@ -139,7 +137,7 @@ function RecentlyAdded({ items, isLoading, libraryId }: {
       <div className="flex items-center justify-between px-5 mb-3">
         <div className="flex items-center gap-2">
           <Headphones className="w-5 h-5 text-blue-400" />
-          <h2 className="text-lg font-semibold text-white">最近添加</h2>
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">最近添加</h2>
         </div>
         <button
           onClick={() => navigate(`/library/${libraryId}`)}

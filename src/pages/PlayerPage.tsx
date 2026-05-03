@@ -25,15 +25,15 @@ function TopBar({ title, onBack, onOpenSkipConfig }: {
 }) {
   return (
     <div className="Player-topBar flex items-center justify-between px-4 h-14 flex-shrink-0">
-      <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
-        <ChevronDown className="w-6 h-6 text-white" />
+      <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+        <ChevronDown className="w-6 h-6 text-[var(--color-text)]" />
       </button>
       <div className="text-center">
-        <p className="text-xs text-gray-400">正在播放</p>
-        <p className="text-xs text-gray-500 truncate max-w-[200px]">{title}</p>
+        <p className="text-xs text-[var(--color-text-secondary)]">正在播放</p>
+        <p className="text-xs text-[var(--color-text-tertiary)] truncate max-w-[200px]">{title}</p>
       </div>
-      <button onClick={onOpenSkipConfig} className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors">
-        <Settings2 className="w-5 h-5 text-gray-400" />
+      <button onClick={onOpenSkipConfig} className="p-2 -mr-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+        <Settings2 className="w-5 h-5 text-[var(--color-text-secondary)]" />
       </button>
     </div>
   );
@@ -43,7 +43,7 @@ function TopBar({ title, onBack, onOpenSkipConfig }: {
 function CoverArt({ itemId, title }: { itemId: string; title?: string }) {
   return (
     <div className="Player-cover flex-1 flex flex-col items-center justify-center px-12 pt-4 pb-8">
-      <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+      <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-[var(--color-bg-card)]">
         <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
       </div>
     </div>
@@ -60,9 +60,9 @@ function ChapterLabel({
   return (
     <button onClick={onClick} className="Player-chapter text-center px-8 mb-4 w-full">
       <p className="text-sm text-purple-400 mb-1">第 {currentIndex + 1} 章 / {total} 章</p>
-      <p className="text-lg font-medium text-white flex items-center justify-center gap-2">
+      <p className="text-lg font-medium text-[var(--color-text)] flex items-center justify-center gap-2">
         {title}
-        <List className="w-4 h-4 text-gray-400" />
+        <List className="w-4 h-4 text-[var(--color-text-secondary)]" />
       </p>
     </button>
   );
@@ -86,7 +86,7 @@ function SeekBar({ currentTime, duration, onSeek }: {
         onMouseUp={() => { if (localTime !== null) { onSeek(localTime); setLocalTime(null); } }}
         onTouchEnd={() => { if (localTime !== null) { onSeek(localTime); setLocalTime(null); } }}
       />
-      <div className="flex justify-between mt-2 text-xs text-gray-400">
+      <div className="flex justify-between mt-2 text-xs text-[var(--color-text-secondary)]">
         <span>{formatTime(displayTime)}</span>
         <span>{formatTime(duration)}</span>
       </div>
@@ -105,7 +105,7 @@ function SkipButtons({ bookSettings, skipSettings, itemId }: {
       <button
         onClick={() => skipSettings.toggleBookAutoSkipIntro(itemId)}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-          bookSettings?.autoSkipIntro ? 'bg-purple-500 text-white' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+          bookSettings?.autoSkipIntro ? 'bg-purple-500 text-[var(--color-text)]' : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
         }`}
       >
         <SkipBack className="w-3 h-3" />
@@ -114,7 +114,7 @@ function SkipButtons({ bookSettings, skipSettings, itemId }: {
       <button
         onClick={() => skipSettings.toggleBookAutoSkipOutro(itemId)}
         className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-          bookSettings?.autoSkipOutro ? 'bg-blue-500 text-white' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+          bookSettings?.autoSkipOutro ? 'bg-blue-500 text-[var(--color-text)]' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
         }`}
       >
         片尾{bookSettings?.autoSkipOutro ? '自动' : ''} {bookSettings?.outroSeconds || 10}s
@@ -138,12 +138,12 @@ function TransportBar({
 }) {
   return (
     <div className="Player-transport flex items-center justify-between px-8 mb-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
-      <button onClick={onSpeedClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
+      <button onClick={onSpeedClick} className="w-14 h-8 rounded-full bg-[var(--color-bg-input)] flex items-center justify-center text-sm font-medium text-[var(--color-text)]">
         {playbackRate}x
       </button>
       <div className="flex items-center gap-4">
-        <button onClick={() => onSkipBackward(skipBwdSec)} className="p-3 rounded-full hover:bg-white/10">
-          <SkipBack className="w-6 h-6 text-white" />
+        <button onClick={() => onSkipBackward(skipBwdSec)} className="p-3 rounded-full hover:bg-[var(--color-bg-input)]">
+          <SkipBack className="w-6 h-6 text-[var(--color-text)]" />
         </button>
         <button
           onClick={onTogglePlay}
@@ -151,12 +151,12 @@ function TransportBar({
         >
           {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
         </button>
-        <button onClick={() => onSkipForward(skipFwdSec)} className="p-3 rounded-full hover:bg-white/10">
-          <SkipForward className="w-6 h-6 text-white" />
+        <button onClick={() => onSkipForward(skipFwdSec)} className="p-3 rounded-full hover:bg-[var(--color-bg-input)]">
+          <SkipForward className="w-6 h-6 text-[var(--color-text)]" />
         </button>
       </div>
-      <button onClick={onSleepClick} className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-white">
-        <Moon className={`w-5 h-5 ${sleepActive ? 'text-purple-400' : 'text-gray-400'}`} />
+      <button onClick={onSleepClick} className="w-14 h-8 rounded-full bg-[var(--color-bg-input)] flex items-center justify-center text-[var(--color-text)]">
+        <Moon className={`w-5 h-5 ${sleepActive ? 'text-purple-400' : 'text-[var(--color-text-secondary)]'}`} />
       </button>
     </div>
   );
@@ -172,7 +172,7 @@ function SpeedPicker({ current, speeds, onSelect }: {
       <div className="grid grid-cols-3 gap-3">
         {speeds.map((speed) => (
           <button key={speed} onClick={() => onSelect(speed)}
-            className={`py-3 rounded-xl text-center font-medium transition-colors ${current === speed ? 'bg-purple-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            className={`py-3 rounded-xl text-center font-medium transition-colors ${current === speed ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text)] hover:bg-[var(--color-bg-active)]'}`}
           >{speed}x</button>
         ))}
       </div>
@@ -198,7 +198,7 @@ function SleepPicker({ remaining, options, onSelect, onClear }: {
               if (opt.value === null) onClear();
               else onSelect(opt.value);
             }}
-            className={`py-3 rounded-xl text-center font-medium transition-colors ${opt.value === null && !remaining ? 'bg-purple-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            className={`py-3 rounded-xl text-center font-medium transition-colors ${opt.value === null && !remaining ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text)] hover:bg-[var(--color-bg-active)]'}`}
           >{opt.label}</button>
         ))}
       </div>
@@ -226,7 +226,7 @@ function SecInput({ value, onChange, max = 300 }: {
         const n = parseFloat(e.target.value) || 0;
         onChange(String(Math.min(Math.round(n * 10) / 10, max)));
       }}
-      className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+      className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1 text-[var(--color-text)] text-sm text-center focus:outline-none focus:ring-1 focus:ring-purple-500/50"
       placeholder="0"
     />
   );
@@ -263,37 +263,37 @@ function SkipConfigPanel({
         {/* 片头 */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-white">跳过片头</span>
+            <span className="text-[var(--color-text)]">跳过片头</span>
             <button
               onClick={() => skipSettings.toggleBookAutoSkipIntro(itemId)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings.autoSkipIntro ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-400'}`}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings.autoSkipIntro ? 'bg-purple-500 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)]'}`}
             >自动{bookSettings.autoSkipIntro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
             <Slider min={0} max={120} step={0.5} value={parseFloat(editIntro) || 0}
               onChange={(v) => setEditIntro(String(Math.round(v * 10) / 10))} />
             <SecInput value={editIntro} onChange={setEditIntro} max={300} />
-            <span className="text-xs text-gray-400">秒</span>
+            <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
           </div>
         </div>
         {/* 片尾 */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-white">跳过片尾</span>
+            <span className="text-[var(--color-text)]">跳过片尾</span>
             <button
               onClick={() => skipSettings.toggleBookAutoSkipOutro(itemId)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings.autoSkipOutro ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings.autoSkipOutro ? 'bg-blue-500 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)]'}`}
             >自动{bookSettings.autoSkipOutro ? '开' : '关'}</button>
           </div>
           <div className="flex items-center gap-3">
             <Slider min={0} max={120} step={0.5} value={parseFloat(editOutro) || 0}
               onChange={(v) => setEditOutro(String(Math.round(v * 10) / 10))} color="#3b82f6" />
             <SecInput value={editOutro} onChange={setEditOutro} max={300} />
-            <span className="text-xs text-gray-400">秒</span>
+            <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
           </div>
         </div>
         <button onClick={handleSave}
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl py-3 mt-2"
+          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-[var(--color-text)] font-medium rounded-xl py-3 mt-2"
         >保存设置</button>
       </div>
     </SlideUpPanel>
@@ -333,17 +333,17 @@ function ChapterPicker({
             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl mb-1 transition-colors text-left ${
               idx === currentIdx
                 ? 'bg-purple-600/30 text-purple-300 ring-1 ring-purple-500/50'
-                : 'hover:bg-white/10 text-white'
+                : 'hover:bg-[var(--color-bg-input)] text-[var(--color-text)]'
             }`}
           >
             <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${
-              idx === currentIdx ? 'bg-purple-600 text-white' : 'bg-white/10 text-gray-400'
+              idx === currentIdx ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)]'
             }`}>{idx + 1}</span>
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium truncate ${idx === currentIdx ? 'text-purple-300' : 'text-white'}`}>
+              <p className={`text-sm font-medium truncate ${idx === currentIdx ? 'text-purple-300' : 'text-[var(--color-text)]'}`}>
                 {ch.title || `章节 ${idx + 1}`}
               </p>
-              <p className="text-xs text-gray-500">{formatTime(ch.duration ?? 0)}</p>
+              <p className="text-xs text-[var(--color-text-tertiary)]">{formatTime(ch.duration ?? 0)}</p>
             </div>
             {idx === currentIdx && <span className="text-xs text-purple-400 flex-shrink-0">当前</span>}
           </button>
@@ -385,14 +385,14 @@ export default function PlayerPage() {
 
   if (!currentItem) {
     return (
-      <div className="h-full bg-black flex items-center justify-center text-gray-400">
+      <div className="h-full bg-[var(--color-bg)] flex items-center justify-center text-[var(--color-text-secondary)]">
         <p>没有正在播放的内容</p>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-hidden bg-black flex flex-col">
+    <div className="h-full overflow-hidden bg-[var(--color-bg)] flex flex-col">
       <TopBar
         title={getTitle(currentItem)}
         onBack={() => window.history.back()}

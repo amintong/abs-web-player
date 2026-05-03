@@ -13,7 +13,7 @@ import { playerLog } from '../utils/playerLogger';
 /** 进度条 */
 function ProgressBar({ percent }: { percent: number }) {
   return (
-    <div className="MiniPlayer-progress h-0.5 bg-white/10">
+    <div className="MiniPlayer-progress h-0.5 bg-[var(--color-progress-bg)]">
       <div
         className="h-full bg-purple-500 transition-all duration-100"
         style={{ width: `${percent}%` }}
@@ -28,7 +28,7 @@ function CoverArt({ itemId, title }: { itemId: string; title?: string }) {
   return (
     <button
       onClick={() => navigate('/player')}
-      className="MiniPlayer-cover w-12 h-12 rounded-lg overflow-hidden bg-gray-800 flex-shrink-0"
+      className="MiniPlayer-cover w-12 h-12 rounded-lg overflow-hidden bg-[var(--color-bg-card)] flex-shrink-0"
     >
       <CoverImage src={getCoverUrl(itemId)} alt={title ?? ''} className="w-full h-full object-cover" />
     </button>
@@ -42,8 +42,8 @@ function TrackInfo() {
   if (!currentItem) return null;
   return (
     <button onClick={() => navigate('/player')} className="MiniPlayer-info flex-1 text-left min-w-0">
-      <p className="text-white font-medium text-sm truncate">{getTitle(currentItem)}</p>
-      <p className="text-gray-400 text-xs truncate">{getAuthorName(currentItem)}</p>
+      <p className="text-[var(--color-text)] font-medium text-sm truncate">{getTitle(currentItem)}</p>
+      <p className="text-[var(--color-text-secondary)] text-xs truncate">{getAuthorName(currentItem)}</p>
     </button>
   );
 }
@@ -105,7 +105,7 @@ export default function MiniPlayer() {
        * - flex-shrink: 0 → 不会被压缩
        * - padding-bottom: env(safe-area-inset-bottom) → 内容避开 Home 条，但背景延伸到底
        */
-      className="MiniPlayer w-full z-50 bg-black/95 border-t border-white/10 flex-shrink-0"
+      className="MiniPlayer w-full z-50 bg-[var(--color-bg)]/95 border-t border-[var(--color-border)] flex-shrink-0"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }}
     >
       <ProgressBar percent={progress} />

@@ -11,6 +11,18 @@
     <title>Audiobookshelf Player</title>
   </head>
   <body>
+    <script>
+      // 在 React 加载前立即设置主题 class，避免闪烁
+      (function() {
+        try {
+          var cfg = JSON.parse(localStorage.getItem('abs-config') || '{}');
+          var theme = (cfg.app && cfg.app.theme) || 'system';
+          var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (isDark) document.documentElement.classList.add('dark');
+          document.querySelector('meta[name="theme-color"]').content = isDark ? '#000000' : '#f5f5f7';
+        } catch(e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

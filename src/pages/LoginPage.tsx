@@ -83,15 +83,15 @@ function CorsHelp() {
   const [open, setOpen] = useState(false);
   return (
     <div className="mt-8">
-      <button onClick={() => setOpen(!open)} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+      <button onClick={() => setOpen(!open)} className="text-xs text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)] transition-colors">
         {open ? '▾' : '▸'} 登录失败？可能需要配置 CORS
       </button>
       {open && (
-        <div className="mt-3 bg-white/5 rounded-xl p-4 text-xs text-gray-400 space-y-3">
+        <div className="mt-3 bg-[var(--color-bg-card)] rounded-xl p-4 text-xs text-[var(--color-text-secondary)] space-y-3">
           <p>本应用是纯前端 PWA，直接从浏览器访问你的 Audiobookshelf 服务器 API。浏览器要求服务器返回 CORS 响应头，否则请求会被拦截。</p>
 
           <div>
-            <p className="text-white font-medium mb-1">需要添加的响应头：</p>
+            <p className="text-[var(--color-text)] font-medium mb-1">需要添加的响应头：</p>
             <pre className="bg-black/50 rounded-lg p-3 overflow-x-auto text-[11px] text-green-400 leading-relaxed whitespace-pre">{`Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS
 Access-Control-Allow-Headers: Authorization, Content-Type
@@ -99,7 +99,7 @@ Access-Control-Allow-Credentials: true`}</pre>
           </div>
 
           <div>
-            <p className="text-white font-medium mb-1">Nginx 反向代理配置示例：</p>
+            <p className="text-[var(--color-text)] font-medium mb-1">Nginx 反向代理配置示例：</p>
             <pre className="bg-black/50 rounded-lg p-3 overflow-x-auto text-[11px] text-blue-300 leading-relaxed whitespace-pre">{`server {
     listen 443 ssl;
     server_name abs.example.com;
@@ -122,7 +122,7 @@ Access-Control-Allow-Credentials: true`}</pre>
 }`}</pre>
           </div>
 
-          <p className="text-gray-500">
+          <p className="text-[var(--color-text-tertiary)]">
             提示：如果使用 Caddy / Traefik 等其他反代工具，请参考对应文档添加 CORS 头。
             配置完成后刷新本页面重新登录即可。
           </p>
@@ -254,9 +254,9 @@ export default function LoginPage() {
 
   if (isAutoLogin) {
     return (
-      <div className="overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="overflow-hidden bg-[var(--color-bg)] flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="w-12 h-12 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-gray-400 text-sm">正在自动登录...</p>
+        <p className="text-[var(--color-text-secondary)] text-sm">正在自动登录...</p>
       </div>
     );
   }
@@ -264,23 +264,23 @@ export default function LoginPage() {
   // 库选择步骤
   if (showLibraryPicker) {
     return (
-      <div className="overflow-hidden bg-black flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="overflow-hidden bg-[var(--color-bg)] flex flex-col items-center justify-center px-6" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="w-full max-w-sm">
-          <h2 className="text-2xl font-bold text-white text-center mb-2">选择媒体库</h2>
-          <p className="text-gray-400 text-sm text-center mb-8">请选择要使用的媒体库</p>
+          <h2 className="text-2xl font-bold text-[var(--color-text)] text-center mb-2">选择媒体库</h2>
+          <p className="text-[var(--color-text-secondary)] text-sm text-center mb-8">请选择要使用的媒体库</p>
           <div className="space-y-3">
             {availableLibraries.map((lib: any) => (
               <button
                 key={lib.id}
                 onClick={() => handleSelectLibrary(lib.id)}
-                className="w-full flex items-center gap-4 bg-white/5 hover:bg-white/10 rounded-2xl px-5 py-4 transition-colors"
+                className="w-full flex items-center gap-4 bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-input)] rounded-2xl px-5 py-4 transition-colors"
               >
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center flex-shrink-0">
                   <Headphones className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="text-white font-medium">{lib.name}</p>
-                  <p className="text-xs text-gray-400">{lib.mediaType === 'book' ? '有声书' : lib.mediaType}</p>
+                  <p className="text-[var(--color-text)] font-medium">{lib.name}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">{lib.mediaType === 'book' ? '有声书' : lib.mediaType}</p>
                 </div>
               </button>
             ))}
@@ -291,15 +291,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="overflow-y-auto bg-black flex flex-col items-center px-6 py-8" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="overflow-y-auto bg-[var(--color-bg)] flex flex-col items-center px-6 py-8" style={{ height: 'var(--app-height, 100dvh)', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center mb-6">
             <Headphones className="w-12 h-12 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Audiobookshelf</h1>
-          <p className="text-gray-400 text-sm">iOS Web Player</p>
+          <h1 className="text-3xl font-bold text-[var(--color-text)] mb-2">Audiobookshelf</h1>
+          <p className="text-[var(--color-text-secondary)] text-sm">iOS Web Player</p>
         </div>
 
         {/* 登录表单 */}
@@ -310,7 +310,7 @@ export default function LoginPage() {
 
           {/* 后端类型 */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">服务器类型</label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">服务器类型</label>
             <div className="flex gap-2">
               {SERVER_TYPE_OPTIONS.map(opt => (
                 <button
@@ -322,8 +322,8 @@ export default function LoginPage() {
                     serverType === opt.value
                       ? 'bg-purple-600 text-white'
                       : opt.available
-                        ? 'bg-gray-900/50 border border-gray-700 text-gray-300 hover:border-purple-500'
-                        : 'bg-gray-900/30 border border-gray-800 text-gray-600 cursor-not-allowed'
+                        ? 'bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-purple-500'
+                        : 'bg-[var(--color-bg-secondary)]/30 border border-[var(--color-border)] text-[var(--color-text-muted)] cursor-not-allowed'
                   }`}
                 >
                   {opt.label}
@@ -333,32 +333,32 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">服务器地址</label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">服务器地址</label>
             <input type="url" value={server}
               onChange={(e) => setServer(e.target.value)}
               placeholder="https://your-server.com:8443"
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+              className="w-full bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:border-purple-500 transition-colors text-sm"
               required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">用户名</label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">用户名</label>
             <input type="text" value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="用户名"
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+              className="w-full bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:border-purple-500 transition-colors text-sm"
               required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">密码</label>
+            <label className="block text-sm font-medium text-[var(--color-text-secondary)] mb-1.5">密码</label>
             <input type="password" value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="密码"
-              className="w-full bg-gray-900/50 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+              className="w-full bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] rounded-xl px-4 py-3 text-[var(--color-text)] placeholder-[var(--color-text-tertiary)] focus:outline-none focus:border-purple-500 transition-colors text-sm"
               required />
           </div>
 
           <button type="submit" disabled={isLoading}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-xl py-4 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-[var(--color-text)] font-semibold rounded-xl py-4 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
             {isLoading ? '登录中...' : '登录'}
           </button>
@@ -369,34 +369,34 @@ export default function LoginPage() {
           <div key={historyKey} className="mt-8">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">历史配置</span>
+                <History className="w-4 h-4 text-[var(--color-text-tertiary)]" />
+                <span className="text-xs text-[var(--color-text-tertiary)]">历史配置</span>
               </div>
-              <button onClick={clearHistory} className="text-xs text-gray-600 hover:text-red-400 flex items-center gap-1">
+              <button onClick={clearHistory} className="text-xs text-[var(--color-text-muted)] hover:text-red-400 flex items-center gap-1">
                 <Trash2 className="w-3 h-3" />清除
               </button>
             </div>
             <div className="space-y-2">
               {savedConfigs.map((cfg, i) => (
                 <button key={i} onClick={() => handleHistoryLogin(cfg)}
-                  className="w-full flex items-center gap-3 bg-white/5 hover:bg-white/10 rounded-xl px-4 py-3 transition-colors text-left"
+                  className="w-full flex items-center gap-3 bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-input)] rounded-xl px-4 py-3 transition-colors text-left"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600/50 to-blue-600/50 flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-medium text-white">{cfg.username.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm text-white truncate">{cfg.username}</p>
+                      <p className="text-sm text-[var(--color-text)] truncate">{cfg.username}</p>
                       {cfg.serverType && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-gray-400 uppercase flex-shrink-0">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-bg-input)] text-[var(--color-text-secondary)] uppercase flex-shrink-0">
                           {cfg.serverType}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 truncate">{cfg.server}</p>
+                    <p className="text-xs text-[var(--color-text-tertiary)] truncate">{cfg.server}</p>
                     {cfg.libraryName && <p className="text-[10px] text-purple-400 truncate">库: {cfg.libraryName}</p>}
                   </div>
-                  <span className="text-[10px] text-gray-600">
+                  <span className="text-[10px] text-[var(--color-text-muted)]">
                     {new Date(cfg.lastLogin).toLocaleDateString('zh-CN')}
                   </span>
                 </button>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAppStore } from './store/appStore';
 import { useMediaSession } from './hooks/useMediaSession';
+import { useTheme } from './hooks/useTheme';
 import { validateSession, getLibraries } from './api/audiobookshelf';
 
 import LoginPage from './pages/LoginPage';
@@ -76,6 +77,7 @@ function ProtectedRoutes() {
 
 function App() {
   const [hydrated, setHydrated] = useState(useAppStore.persist.hasHydrated());
+  useTheme();
 
   useEffect(() => {
     const unsub = useAppStore.persist.onFinishHydration(() => setHydrated(true));
@@ -87,7 +89,7 @@ function App() {
 
   if (!hydrated) {
     return (
-      <div className="bg-black flex items-center justify-center" style={{ position: 'fixed', inset: 0 }}>
+      <div className="bg-[var(--color-bg)] flex items-center justify-center" style={{ position: 'fixed', inset: 0 }}>
         <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );

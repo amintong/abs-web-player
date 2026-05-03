@@ -63,23 +63,23 @@ export default function FullPlayer() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+    <div className="fixed inset-0 z-[100] bg-[var(--color-bg)] flex flex-col">
       {/* 顶部栏 */}
       <div className="flex items-center justify-between px-4 h-14 flex-shrink-0">
-        <button onClick={hideFullPlayer} className="p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors">
-          <ChevronDown className="w-6 h-6 text-white" />
+        <button onClick={hideFullPlayer} className="p-2 -ml-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+          <ChevronDown className="w-6 h-6 text-[var(--color-text)]" />
         </button>
         <div className="text-center">
-          <p className="text-xs text-gray-400">正在播放</p>
+          <p className="text-xs text-[var(--color-text-secondary)]">正在播放</p>
         </div>
-        <button onClick={() => setShowSkipConfig(!showSkipConfig)} className="p-2 -mr-2 rounded-full hover:bg-white/10 transition-colors">
-          <Settings2 className="w-5 h-5 text-gray-400" />
+        <button onClick={() => setShowSkipConfig(!showSkipConfig)} className="p-2 -mr-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+          <Settings2 className="w-5 h-5 text-[var(--color-text-secondary)]" />
         </button>
       </div>
 
       {/* 封面 */}
       <div className="flex-1 flex flex-col items-center justify-center px-12 pt-4 pb-8">
-        <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+        <div className="w-full max-w-[400px] aspect-square rounded-2xl overflow-hidden shadow-2xl bg-[var(--color-bg-card)]">
           <CoverImage src={getCoverUrl(currentItem.id)} alt={getTitle(currentItem)} className="w-full h-full object-cover" />
         </div>
       </div>
@@ -90,14 +90,14 @@ export default function FullPlayer() {
           <p className="text-sm text-purple-400 mb-1">
             第 {currentChapterIndex + 1} 章 / {chapters.length} 章
           </p>
-          <p className="text-lg font-medium text-white">{currentChapter.title}</p>
+          <p className="text-lg font-medium text-[var(--color-text)]">{currentChapter.title}</p>
         </div>
       )}
 
       {/* 进度条 */}
       <div className="px-8 mb-6">
         <Slider value={currentTime} min={0} max={duration || 100} onChange={seek} />
-        <div className="flex justify-between mt-2 text-xs text-gray-400">
+        <div className="flex justify-between mt-2 text-xs text-[var(--color-text-secondary)]">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
@@ -109,7 +109,7 @@ export default function FullPlayer() {
           onClick={() => { if (currentItem) skipSettings.toggleBookAutoSkipIntro(currentItem.id); }}
           className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
             bookSettings?.autoSkipIntro
-              ? 'bg-purple-500 text-white'
+              ? 'bg-purple-500 text-[var(--color-text)]'
               : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
           }`}
         >
@@ -121,7 +121,7 @@ export default function FullPlayer() {
           onClick={() => { if (currentItem) skipSettings.toggleBookAutoSkipOutro(currentItem.id); }}
           className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
             bookSettings?.autoSkipOutro
-              ? 'bg-blue-500 text-white'
+              ? 'bg-blue-500 text-[var(--color-text)]'
               : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
           }`}
         >
@@ -130,58 +130,58 @@ export default function FullPlayer() {
         </button>
 
         {/* 手动跳过 */}
-        <button onClick={skipIntro} className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors" title="手动跳过片头">
-          <SkipBackIcon className="w-4 h-4 text-gray-400" />
+        <button onClick={skipIntro} className="p-1.5 rounded-full bg-[var(--color-bg-input)] hover:bg-[var(--color-bg-active)] transition-colors" title="手动跳过片头">
+          <SkipBackIcon className="w-4 h-4 text-[var(--color-text-secondary)]" />
         </button>
-        <button onClick={skipOutro} className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors" title="手动跳过片尾">
-          <SkipForwardIcon className="w-4 h-4 text-gray-400" />
+        <button onClick={skipOutro} className="p-1.5 rounded-full bg-[var(--color-bg-input)] hover:bg-[var(--color-bg-active)] transition-colors" title="手动跳过片尾">
+          <SkipForwardIcon className="w-4 h-4 text-[var(--color-text-secondary)]" />
         </button>
       </div>
 
       {/* 主控制条 */}
       <div className="flex items-center justify-between px-8 mb-4">
         <button onClick={() => setShowSpeedPicker(!showSpeedPicker)}
-          className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white"
+          className="w-14 h-8 rounded-full bg-[var(--color-bg-input)] flex items-center justify-center text-sm font-medium text-[var(--color-text)]"
         >{playbackRate}x</button>
 
         <div className="flex items-center gap-4">
-          <button onClick={playPreviousChapter} className="p-3 rounded-full hover:bg-white/10 transition-colors">
-            <SkipBackIcon className="w-6 h-6 text-white" />
+          <button onClick={playPreviousChapter} className="p-3 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+            <SkipBackIcon className="w-6 h-6 text-[var(--color-text)]" />
           </button>
           <button onClick={() => (isPlaying ? pause() : resume())}
             className="w-16 h-16 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg"
           >
             {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
           </button>
-          <button onClick={playNextChapter} className="p-3 rounded-full hover:bg-white/10 transition-colors">
-            <SkipForwardIcon className="w-6 h-6 text-white" />
+          <button onClick={playNextChapter} className="p-3 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+            <SkipForwardIcon className="w-6 h-6 text-[var(--color-text)]" />
           </button>
         </div>
 
         <button onClick={() => setShowSleepPicker(!showSleepPicker)}
-          className="w-14 h-8 rounded-full bg-white/10 flex items-center justify-center text-white"
+          className="w-14 h-8 rounded-full bg-[var(--color-bg-input)] flex items-center justify-center text-[var(--color-text)]"
         >
-          <Moon className={`w-5 h-5 ${sleepTimeRemaining ? 'text-purple-400' : 'text-gray-400'}`} />
+          <Moon className={`w-5 h-5 ${sleepTimeRemaining ? 'text-purple-400' : 'text-[var(--color-text-secondary)]'}`} />
         </button>
       </div>
 
       {/* 音量条 */}
       <div className="flex items-center gap-4 px-8 pb-6">
-        <button onClick={() => setVolume(volume > 0 ? 0 : 1)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
-          {volume === 0 ? <VolumeX className="w-5 h-5 text-gray-400" /> : <Volume2 className="w-5 h-5 text-gray-400" />}
+        <button onClick={() => setVolume(volume > 0 ? 0 : 1)} className="p-2 rounded-full hover:bg-[var(--color-bg-input)] transition-colors">
+          {volume === 0 ? <VolumeX className="w-5 h-5 text-[var(--color-text-secondary)]" /> : <Volume2 className="w-5 h-5 text-[var(--color-text-secondary)]" />}
         </button>
         <Slider value={volume} min={0} max={1} step={0.05} onChange={setVolume} />
       </div>
 
       {/* 倍速选择器 */}
       {showSpeedPicker && (
-        <div className="fixed inset-x-0 bottom-0 z-[110] bg-gray-900 rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="fixed inset-x-0 bottom-0 z-[110] bg-[var(--color-bg-secondary)] rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white text-center mb-4">播放倍速</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text)] text-center mb-4">播放倍速</h3>
           <div className="grid grid-cols-3 gap-3">
             {playbackSpeeds.map((speed) => (
               <button key={speed} onClick={() => { setPlaybackRate(speed); setShowSpeedPicker(false); }}
-                className={`py-3 rounded-xl text-center font-medium transition-colors ${playbackRate === speed ? 'bg-purple-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className={`py-3 rounded-xl text-center font-medium transition-colors ${playbackRate === speed ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text)] hover:bg-[var(--color-bg-active)]'}`}
               >{speed}x</button>
             ))}
           </div>
@@ -190,9 +190,9 @@ export default function FullPlayer() {
 
       {/* 睡眠模式 */}
       {showSleepPicker && (
-        <div className="fixed inset-x-0 bottom-0 z-[110] bg-gray-900 rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="fixed inset-x-0 bottom-0 z-[110] bg-[var(--color-bg-secondary)] rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white text-center mb-4">
+          <h3 className="text-lg font-semibold text-[var(--color-text)] text-center mb-4">
             {sleepTimeRemaining ? `剩余 ${Math.floor(sleepTimeRemaining / 60)}:${(sleepTimeRemaining % 60).toString().padStart(2, '0')}` : '睡眠模式'}
           </h3>
           <div className="grid grid-cols-2 gap-3">
@@ -202,7 +202,7 @@ export default function FullPlayer() {
                 else if (opt.value === -1) setSleepTimer(Math.ceil((duration - currentTime) / 60));
                 else setSleepTimer(opt.value);
                 setShowSleepPicker(false);
-              }} className={`py-3 rounded-xl text-center font-medium transition-colors ${opt.value === null && !sleepTimeRemaining ? 'bg-purple-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              }} className={`py-3 rounded-xl text-center font-medium transition-colors ${opt.value === null && !sleepTimeRemaining ? 'bg-purple-600 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text)] hover:bg-[var(--color-bg-active)]'}`}
               >{opt.label}</button>
             ))}
           </div>
@@ -211,49 +211,49 @@ export default function FullPlayer() {
 
       {/* 片头片尾配置面板 */}
       {showSkipConfig && (
-        <div className="fixed inset-x-0 bottom-0 z-[110] bg-gray-900 rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="fixed inset-x-0 bottom-0 z-[110] bg-[var(--color-bg-secondary)] rounded-t-3xl p-4" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="w-12 h-1 bg-gray-600 rounded-full mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white text-center mb-4">跳过设置 · 本书</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text)] text-center mb-4">跳过设置 · 本书</h3>
 
           <div className="space-y-4 px-2">
             {/* 片头 */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white">跳过片头</span>
+                <span className="text-[var(--color-text)]">跳过片头</span>
                 <button
                   onClick={() => { if (currentItem) skipSettings.toggleBookAutoSkipIntro(currentItem.id); }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings?.autoSkipIntro ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-400'}`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings?.autoSkipIntro ? 'bg-purple-500 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)]'}`}
                 >自动跳过 {bookSettings?.autoSkipIntro ? '开' : '关'}</button>
               </div>
               <div className="flex items-center gap-3">
                 <Slider min={0} max={120} step={5} value={parseInt(editIntro) || 0}
                   onChange={(v) => setEditIntro(String(v))} />
                 <input type="number" value={editIntro} onChange={(e) => setEditIntro(e.target.value)}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center" min="0" max="300" />
-                <span className="text-xs text-gray-400">秒</span>
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1 text-[var(--color-text)] text-sm text-center" min="0" max="300" />
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
 
             {/* 片尾 */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white">跳过片尾</span>
+                <span className="text-[var(--color-text)]">跳过片尾</span>
                 <button
                   onClick={() => { if (currentItem) skipSettings.toggleBookAutoSkipOutro(currentItem.id); }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings?.autoSkipOutro ? 'bg-blue-500 text-white' : 'bg-white/10 text-gray-400'}`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${bookSettings?.autoSkipOutro ? 'bg-blue-500 text-[var(--color-text)]' : 'bg-[var(--color-bg-input)] text-[var(--color-text-secondary)]'}`}
                 >自动跳过 {bookSettings?.autoSkipOutro ? '开' : '关'}</button>
               </div>
               <div className="flex items-center gap-3">
                 <Slider min={0} max={120} step={5} value={parseInt(editOutro) || 0}
                   onChange={(v) => setEditOutro(String(v))} color="#3b82f6" />
                 <input type="number" value={editOutro} onChange={(e) => setEditOutro(e.target.value)}
-                  className="w-16 bg-white/10 rounded-lg px-2 py-1 text-white text-sm text-center" min="0" max="300" />
-                <span className="text-xs text-gray-400">秒</span>
+                  className="w-16 bg-[var(--color-bg-input)] rounded-lg px-2 py-1 text-[var(--color-text)] text-sm text-center" min="0" max="300" />
+                <span className="text-xs text-[var(--color-text-secondary)]">秒</span>
               </div>
             </div>
 
             <button onClick={handleSaveSkip}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium rounded-xl py-3 mt-2"
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-[var(--color-text)] font-medium rounded-xl py-3 mt-2"
             >保存设置</button>
           </div>
         </div>
