@@ -1,137 +1,224 @@
 /**
- * AudioCache - 音频缓存单例
+ * AudioCache v2 — 流式播放 + Cache API 持久缓存
  *
- * 原则：播放器只从缓存播放音频，所有播放必须先触发加载缓存，再从缓存里播放。
+ * 核心策略改变：
+ *   v1: 必须下载整个文件到 Blob 才播放（100MB 等太久）
+ *   v2: 直接用原始 URL 流式播放（浏览器边下边播），同时后台持久缓存
  *
- * 策略：
- * - 下载完整章节为 Blob，创建 blob URL 供 HTMLAudioElement 播放
- * - LRU 淘汰，总容量上限 ~300MB
- * - 加载当前章节时自动预取后续 N 章
- * - 仅在手动点击"清除缓存"时或 LRU 淘汰时清理
+ * 播放优先级：
+ *   1. Cache API 中有缓存 → 用缓存 Response 创建 blob URL
+ *   2. 未缓存 → 直接返回原始 URL（浏览器流式播放），后台静默缓存
+ *
+ * 持久化：使用 Cache API（PWA 模式下跨会话保留）
+ * 淘汰：LRU，总容量上限 ~500MB
+ * 预取：后台静默缓存后续 N 章
  */
 
-const MAX_CACHE_SIZE = 300 * 1024 * 1024; // 300MB
-const PREFETCH_AHEAD = 3; // 预取后续章节数
+import { playerLog } from './playerLogger';
 
-interface CacheEntry {
-  blob: Blob;
-  objectUrl: string;
-  size: number;
+const CACHE_NAME = 'audio-cache-v1';
+const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB
+const PREFETCH_AHEAD = 3;
+
+/** 缓存元数据（存在 localStorage 中记录 LRU 和大小） */
+interface CacheMeta {
   url: string;
+  size: number;
   lastAccessed: number;
+}
+
+const META_KEY = 'audio-cache-meta';
+
+function loadMeta(): Map<string, CacheMeta> {
+  try {
+    const raw = localStorage.getItem(META_KEY);
+    if (!raw) return new Map();
+    const arr: CacheMeta[] = JSON.parse(raw);
+    return new Map(arr.map(m => [m.url, m]));
+  } catch {
+    return new Map();
+  }
+}
+
+function saveMeta(meta: Map<string, CacheMeta>): void {
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify([...meta.values()]));
+  } catch { /* quota exceeded */ }
 }
 
 export class AudioCache {
   private static instance: AudioCache;
 
-  private entries = new Map<string, CacheEntry>();
-  private pending = new Map<string, Promise<string>>();
-  private totalSize = 0;
+  private meta: Map<string, CacheMeta>;
+  private pending = new Set<string>();
+  /** 内存中的 blob URL 缓存（避免重复 createObjectURL） */
+  private blobUrls = new Map<string, string>();
 
   static getInstance(): AudioCache {
     if (!this.instance) this.instance = new AudioCache();
     return this.instance;
   }
 
-  /** 获取缓存的 blob URL —— 播放器的唯一音频来源 */
-  async getCached(url: string): Promise<string> {
-    const existing = this.entries.get(url);
-    if (existing) {
-      existing.lastAccessed = Date.now();
-      return existing.objectUrl;
-    }
-
-    if (this.pending.has(url)) {
-      return this.pending.get(url)!;
-    }
-
-    const promise = this.fetchAndCache(url);
-    this.pending.set(url, promise);
-    try {
-      return await promise;
-    } finally {
-      this.pending.delete(url);
-    }
+  private constructor() {
+    this.meta = loadMeta();
   }
 
-  /** 是否已在缓存中 */
+  /**
+   * 获取播放 URL
+   * - 已缓存 → 返回 blob URL（离线可播放）
+   * - 未缓存 → 返回原始 URL（浏览器流式播放），同时后台缓存
+   */
+  async getPlayUrl(originalUrl: string): Promise<string> {
+    // 1. 检查 Cache API
+    const cached = await this.getFromCache(originalUrl);
+    if (cached) {
+      this.touchMeta(originalUrl);
+      playerLog('cache', `缓存命中 · ${this.formatUrl(originalUrl)}`);
+      return cached;
+    }
+
+    // 2. 未缓存：返回原始 URL 让浏览器流式播放，后台静默缓存
+    playerLog('cache', `流式播放 · ${this.formatUrl(originalUrl)}`);
+    this.cacheInBackground(originalUrl);
+    return originalUrl;
+  }
+
+  /** 是否已在缓存中（同步检查 meta） */
   isCached(url: string): boolean {
-    return this.entries.has(url);
+    return this.meta.has(url);
   }
 
-  /** 静默预取，失败不影响主流程 */
-  prefetch(url: string): void {
-    if (this.entries.has(url) || this.pending.has(url)) return;
-    const promise = this.fetchAndCache(url);
-    this.pending.set(url, promise);
-    promise
-      .catch(() => { /* 预取失败静默处理 */ })
-      .finally(() => this.pending.delete(url));
-  }
-
-  /** 预取后续 N 个章节 */
+  /** 预取后续 N 个章节（后台静默） */
   prefetchAhead(urls: string[], currentIndex: number, count = PREFETCH_AHEAD): void {
     for (let i = 1; i <= count; i++) {
       const idx = currentIndex + i;
-      if (idx < urls.length) this.prefetch(urls[idx]);
+      if (idx < urls.length) {
+        this.cacheInBackground(urls[idx]);
+      }
     }
-  }
-
-  /** 取消所有正在进行的预取 */
-  cancelPending(): void {
-    this.pending.clear();
   }
 
   /** 清空所有缓存 */
-  clear(): void {
-    this.cancelPending();
-    for (const entry of this.entries.values()) {
-      URL.revokeObjectURL(entry.objectUrl);
+  async clear(): Promise<void> {
+    this.pending.clear();
+    // 清理 blob URLs
+    for (const blobUrl of this.blobUrls.values()) {
+      URL.revokeObjectURL(blobUrl);
     }
-    this.entries.clear();
-    this.totalSize = 0;
+    this.blobUrls.clear();
+    // 清理 Cache API
+    try {
+      await caches.delete(CACHE_NAME);
+    } catch { /* ignore */ }
+    // 清理 meta
+    this.meta.clear();
+    saveMeta(this.meta);
+    playerLog('cache', '缓存已清空');
   }
 
   /** 缓存信息，用于 UI 展示 */
   getCacheInfo(): { entries: number; totalMB: number } {
-    return { entries: this.entries.size, totalMB: Math.round(this.totalSize / 1024 / 1024) };
+    let total = 0;
+    for (const m of this.meta.values()) total += m.size;
+    return { entries: this.meta.size, totalMB: Math.round(total / 1024 / 1024) };
   }
 
-  private async fetchAndCache(url: string): Promise<string> {
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const size = blob.size;
+  // ── 内部方法 ──
 
-    this.evictIfNeeded(size);
+  /** 从 Cache API 获取并创建 blob URL */
+  private async getFromCache(url: string): Promise<string | null> {
+    // 先检查内存中的 blob URL
+    if (this.blobUrls.has(url)) return this.blobUrls.get(url)!;
 
-    this.entries.set(url, { blob, objectUrl, size, url, lastAccessed: Date.now() });
-    this.totalSize += size;
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      const response = await cache.match(url);
+      if (!response) return null;
 
-    return objectUrl;
-  }
-
-  private evictIfNeeded(neededSize: number): void {
-    while (this.totalSize + neededSize > MAX_CACHE_SIZE && this.entries.size > 0) {
-      let oldestUrl = '';
-      let oldestTime = Infinity;
-      for (const [url, entry] of this.entries) {
-        if (entry.lastAccessed < oldestTime) {
-          oldestTime = entry.lastAccessed;
-          oldestUrl = url;
-        }
-      }
-      if (!oldestUrl) break;
-      this.evict(oldestUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      this.blobUrls.set(url, blobUrl);
+      return blobUrl;
+    } catch {
+      return null;
     }
   }
 
-  private evict(url: string): void {
-    const entry = this.entries.get(url);
-    if (entry) {
-      URL.revokeObjectURL(entry.objectUrl);
-      this.totalSize -= entry.size;
-      this.entries.delete(url);
+  /** 后台静默缓存（不阻塞播放） */
+  private cacheInBackground(url: string): void {
+    if (this.meta.has(url) || this.pending.has(url)) return;
+    this.pending.add(url);
+
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        const response = await fetch(url);
+        if (!response.ok) return;
+
+        const size = parseInt(response.headers.get('content-length') || '0') || 0;
+
+        // LRU 淘汰
+        await this.evictIfNeeded(size);
+
+        // 存入 Cache API
+        await cache.put(url, response);
+
+        // 更新 meta
+        this.meta.set(url, { url, size, lastAccessed: Date.now() });
+        saveMeta(this.meta);
+        playerLog('cache', `后台缓存完成 · ${this.formatUrl(url)} · ${Math.round(size / 1024 / 1024)}MB`);
+      } catch {
+        // 缓存失败不影响播放
+      } finally {
+        this.pending.delete(url);
+      }
+    })();
+  }
+
+  /** LRU 淘汰 */
+  private async evictIfNeeded(neededSize: number): Promise<void> {
+    let total = 0;
+    for (const m of this.meta.values()) total += m.size;
+
+    if (total + neededSize <= MAX_CACHE_SIZE) return;
+
+    // 按 lastAccessed 排序，淘汰最旧的
+    const sorted = [...this.meta.entries()].sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+    const cache = await caches.open(CACHE_NAME);
+
+    for (const [url, entry] of sorted) {
+      if (total + neededSize <= MAX_CACHE_SIZE) break;
+      await cache.delete(url);
+      total -= entry.size;
+      this.meta.delete(url);
+      // 清理 blob URL
+      if (this.blobUrls.has(url)) {
+        URL.revokeObjectURL(this.blobUrls.get(url)!);
+        this.blobUrls.delete(url);
+      }
+      playerLog('cache', `LRU 淘汰 · ${this.formatUrl(url)}`);
+    }
+
+    saveMeta(this.meta);
+  }
+
+  /** 更新 LRU 时间 */
+  private touchMeta(url: string): void {
+    const m = this.meta.get(url);
+    if (m) {
+      m.lastAccessed = Date.now();
+      saveMeta(this.meta);
+    }
+  }
+
+  /** 格式化 URL 用于日志（只显示最后的文件名部分） */
+  private formatUrl(url: string): string {
+    try {
+      const u = new URL(url);
+      const parts = u.pathname.split('/');
+      return parts[parts.length - 1] || parts[parts.length - 2] || url.slice(-30);
+    } catch {
+      return url.slice(-30);
     }
   }
 }

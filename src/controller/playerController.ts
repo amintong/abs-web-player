@@ -177,10 +177,9 @@ async function loadChapter(index: number): Promise<boolean> {
   playerLog('chapter', `加载章节 ${index + 1}/${s.chapters.length}`, { title: chapter.title });
 
   const url = getAudioUrl(s.currentItem.id, chapter.ino);
-  const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
-  if (cachedUrl !== url) playerLog('cache', `缓存命中 · 第${index + 1}章`);
+  const playUrl = await AudioCache.getInstance().getPlayUrl(url).catch(() => url);
 
-  audio.src = cachedUrl;
+  audio.src = playUrl;
 
   const allUrls = s.chapters.map(ch => getAudioUrl(s.currentItem!.id, ch.ino));
   AudioCache.getInstance().prefetchAhead(allUrls, index, 3);
@@ -340,14 +339,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
       // 加载首章音频
       const url = getAudioUrl(item.id, targetChapter.ino);
-      const cachedUrl = await AudioCache.getInstance().getCached(url).catch(() => url);
+      const playUrl = await AudioCache.getInstance().getPlayUrl(url).catch(() => url);
 
       audio.onerror = () => {
         console.warn('Audio error:', audio.error?.message);
         playerWarn('lifecycle', '音频加载错误', { error: audio.error?.message || 'unknown' });
         set({ isPlaying: false });
       };
-      audio.src = cachedUrl;
+      audio.src = playUrl;
 
       AudioCache.getInstance().prefetchAhead(
         chapters.map(ch => getAudioUrl(item.id, ch.ino)), targetIdx, 3

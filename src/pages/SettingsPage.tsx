@@ -399,8 +399,8 @@ export default function SettingsPage() {
                     : '当前无缓存'}
                 </p>
               </div>
-              <button onClick={() => {
-                AudioCache.getInstance().clear();
+              <button onClick={async () => {
+                await AudioCache.getInstance().clear();
                 refreshCacheInfo();
               }} disabled={cacheInfo.entries === 0}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-medium
