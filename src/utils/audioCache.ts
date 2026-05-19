@@ -1,24 +1,25 @@
 /**
- * AudioCache v2 — 流式播放 + Cache API 持久缓存
+ * AudioCache v2.1 — 流式播放 + Cache API 持久缓存
  *
- * 核心策略改变：
- *   v1: 必须下载整个文件到 Blob 才播放（100MB 等太久）
- *   v2: 直接用原始 URL 流式播放（浏览器边下边播），同时后台持久缓存
+ * 策略：
+ *   1. 已缓存 → blob URL 离线播放
+ *   2. 未缓存 → 直接返回原始 URL（浏览器流式播放）
+ *   3. 后台预取下一章（≤20MB）
  *
- * 播放优先级：
- *   1. Cache API 中有缓存 → 用缓存 Response 创建 blob URL
- *   2. 未缓存 → 直接返回原始 URL（浏览器流式播放），后台静默缓存
+ * 关键优化：
+ *   - 当前播放章节不重复下载（浏览器已在流式加载）
+ *   - 超过 20MB 的文件不后台缓存（避免争抢带宽导致卡顿）
+ *   - 只预取下一章，不和播放争带宽
  *
- * 持久化：使用 Cache API（PWA 模式下跨会话保留）
+ * 持久化：Cache API（PWA 模式下跨会话保留）
  * 淘汰：LRU，总容量上限 ~500MB
- * 预取：后台静默缓存后续 N 章
  */
 
 import { playerLog } from './playerLogger';
 
 const CACHE_NAME = 'audio-cache-v1';
 const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB
-const PREFETCH_AHEAD = 1;
+const MAX_PREFETCH_SIZE = 20 * 1024 * 1024; // 超过 20MB 不后台缓存
 
 /** 缓存元数据（存在 localStorage 中记录 LRU 和大小） */
 interface CacheMeta {
@@ -66,10 +67,12 @@ export class AudioCache {
   /**
    * 获取播放 URL
    * - 已缓存 → 返回 blob URL（离线可播放）
-   * - 未缓存 → 返回原始 URL（浏览器流式播放），同时后台缓存
+   * - 未缓存 → 返回原始 URL（浏览器流式播放）
+   *
+   * 注意：不再对当前播放 URL 做后台缓存，避免和浏览器流式下载争带宽
    */
   async getPlayUrl(originalUrl: string): Promise<string> {
-    // 1. 检查 Cache API
+    // 检查 Cache API
     const cached = await this.getFromCache(originalUrl);
     if (cached) {
       this.touchMeta(originalUrl);
@@ -77,9 +80,8 @@ export class AudioCache {
       return cached;
     }
 
-    // 2. 未缓存：返回原始 URL 让浏览器流式播放，后台静默缓存
+    // 未缓存：直接返回原始 URL，浏览器流式播放
     playerLog('cache', `流式播放 · ${this.formatUrl(originalUrl)}`);
-    this.cacheInBackground(originalUrl);
     return originalUrl;
   }
 
@@ -88,12 +90,13 @@ export class AudioCache {
     return this.meta.has(url);
   }
 
-  /** 预取后续 N 个章节（后台静默） */
-  prefetchAhead(urls: string[], currentIndex: number, count = PREFETCH_AHEAD): void {
-    for (let i = 1; i <= count; i++) {
-      const idx = currentIndex + i;
-      if (idx < urls.length) {
-        this.cacheInBackground(urls[idx]);
+  /** 预取下一章（后台静默，不影响当前播放） */
+  prefetchAhead(urls: string[], currentIndex: number): void {
+    const nextIdx = currentIndex + 1;
+    if (nextIdx < urls.length) {
+      const nextUrl = urls[nextIdx];
+      if (!this.meta.has(nextUrl) && !this.pending.has(nextUrl)) {
+        this.cacheInBackground(nextUrl);
       }
     }
   }
@@ -101,16 +104,13 @@ export class AudioCache {
   /** 清空所有缓存 */
   async clear(): Promise<void> {
     this.pending.clear();
-    // 清理 blob URLs
     for (const blobUrl of this.blobUrls.values()) {
       URL.revokeObjectURL(blobUrl);
     }
     this.blobUrls.clear();
-    // 清理 Cache API
     try {
       await caches.delete(CACHE_NAME);
     } catch { /* ignore */ }
-    // 清理 meta
     this.meta.clear();
     saveMeta(this.meta);
     playerLog('cache', '缓存已清空');
@@ -127,7 +127,6 @@ export class AudioCache {
 
   /** 从 Cache API 获取并创建 blob URL */
   private async getFromCache(url: string): Promise<string | null> {
-    // 先检查内存中的 blob URL
     if (this.blobUrls.has(url)) return this.blobUrls.get(url)!;
 
     try {
@@ -144,13 +143,25 @@ export class AudioCache {
     }
   }
 
-  /** 后台静默缓存（不阻塞播放） */
+  /** 后台静默缓存 */
   private cacheInBackground(url: string): void {
     if (this.meta.has(url) || this.pending.has(url)) return;
     this.pending.add(url);
 
     (async () => {
       try {
+        // 先 HEAD 检查文件大小，超过 20MB 不缓存
+        try {
+          const head = await fetch(url, { method: 'HEAD' });
+          const size = parseInt(head.headers.get('content-length') || '0');
+          if (size > MAX_PREFETCH_SIZE) {
+            playerLog('cache', `跳过缓存（${Math.round(size / 1024 / 1024)}MB > 20MB）· ${this.formatUrl(url)}`);
+            return;
+          }
+        } catch {
+          // HEAD 失败不阻止尝试
+        }
+
         const cache = await caches.open(CACHE_NAME);
         const response = await fetch(url);
         if (!response.ok) return;
@@ -159,16 +170,18 @@ export class AudioCache {
         const blob = await clone.blob();
         const size = blob.size;
 
-        // LRU 淘汰
-        await this.evictIfNeeded(size);
+        // 下载完再次检查大小（HEAD 可能不准）
+        if (size > MAX_PREFETCH_SIZE) {
+          playerLog('cache', `跳过缓存（实际 ${Math.round(size / 1024 / 1024)}MB > 20MB）· ${this.formatUrl(url)}`);
+          return;
+        }
 
-        // 存入 Cache API
+        await this.evictIfNeeded(size);
         await cache.put(url, response);
 
-        // 更新 meta
         this.meta.set(url, { url, size, lastAccessed: Date.now() });
         saveMeta(this.meta);
-        playerLog('cache', `后台缓存完成 · ${this.formatUrl(url)} · ${Math.round(size / 1024 / 1024)}MB`);
+        playerLog('cache', `缓存完成 · ${this.formatUrl(url)} · ${Math.round(size / 1024 / 1024)}MB`);
       } catch {
         // 缓存失败不影响播放
       } finally {
@@ -184,7 +197,6 @@ export class AudioCache {
 
     if (total + neededSize <= MAX_CACHE_SIZE) return;
 
-    // 按 lastAccessed 排序，淘汰最旧的
     const sorted = [...this.meta.entries()].sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
     const cache = await caches.open(CACHE_NAME);
 
@@ -193,7 +205,6 @@ export class AudioCache {
       await cache.delete(url);
       total -= entry.size;
       this.meta.delete(url);
-      // 清理 blob URL
       if (this.blobUrls.has(url)) {
         URL.revokeObjectURL(this.blobUrls.get(url)!);
         this.blobUrls.delete(url);
@@ -213,7 +224,7 @@ export class AudioCache {
     }
   }
 
-  /** 格式化 URL 用于日志（只显示最后的文件名部分） */
+  /** 格式化 URL 用于日志 */
   private formatUrl(url: string): string {
     try {
       const u = new URL(url);
