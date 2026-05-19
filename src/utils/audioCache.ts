@@ -18,7 +18,8 @@ import { playerLog } from './playerLogger';
 
 const CACHE_NAME = 'audio-cache-v1';
 const MAX_CACHE_SIZE = 500 * 1024 * 1024; // 500MB
-const PREFETCH_AHEAD = 3;
+const PREFETCH_AHEAD = 1;
+const PREFETCH_MAX_SIZE = 50 * 1024 * 1024; // 单文件超过 50MB 不预取
 
 /** 缓存元数据（存在 localStorage 中记录 LRU 和大小） */
 interface CacheMeta {
@@ -145,17 +146,33 @@ export class AudioCache {
   }
 
   /** 后台静默缓存（不阻塞播放） */
-  private cacheInBackground(url: string): void {
+  private cacheInBackground(url: string, skipSizeCheck = false): void {
     if (this.meta.has(url) || this.pending.has(url)) return;
     this.pending.add(url);
 
     (async () => {
       try {
+        // 预取时检查文件大小，超过阈值跳过
+        if (!skipSizeCheck) {
+          try {
+            const head = await fetch(url, { method: 'HEAD' });
+            const contentLength = parseInt(head.headers.get('content-length') || '0');
+            if (contentLength > PREFETCH_MAX_SIZE) {
+              playerLog('cache', `跳过预取（文件过大 ${Math.round(contentLength / 1024 / 1024)}MB）· ${this.formatUrl(url)}`);
+              return;
+            }
+          } catch {
+            // HEAD 失败不阻止缓存尝试
+          }
+        }
+
         const cache = await caches.open(CACHE_NAME);
         const response = await fetch(url);
         if (!response.ok) return;
 
-        const size = parseInt(response.headers.get('content-length') || '0') || 0;
+        const clone = response.clone();
+        const blob = await clone.blob();
+        const size = blob.size;
 
         // LRU 淘汰
         await this.evictIfNeeded(size);

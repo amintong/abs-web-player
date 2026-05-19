@@ -182,7 +182,7 @@ async function loadChapter(index: number): Promise<boolean> {
   audio.src = playUrl;
 
   const allUrls = s.chapters.map(ch => getAudioUrl(s.currentItem!.id, ch.ino));
-  AudioCache.getInstance().prefetchAhead(allUrls, index, 3);
+  AudioCache.getInstance().prefetchAhead(allUrls, index);
 
   if (rate !== 1) audio.playbackRate = rate;
   audio.volume = s.volume;
@@ -349,7 +349,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       audio.src = playUrl;
 
       AudioCache.getInstance().prefetchAhead(
-        chapters.map(ch => getAudioUrl(item.id, ch.ino)), targetIdx, 3
+        chapters.map(ch => getAudioUrl(item.id, ch.ino)), targetIdx
       );
 
       audio.volume = get().volume;
