@@ -163,7 +163,18 @@ function startAllTimers() {
 
       const ct = audio.currentTime;
       const cfg = d.getBookConfig(st.currentItem.id);
-      const end = st.currentChapter.duration;
+      const chapterDur = st.currentChapter.duration;
+      // 实际结束点：取 chapter.duration 和 audio.duration 中较小的（避免 duration 不一致导致不切章）
+      const audioDur = audio.duration;
+      const end = (audioDur && isFinite(audioDur)) ? Math.min(chapterDur, audioDur) : chapterDur;
+
+      // audio 已结束（浏览器标记 ended）→ 直接切章
+      if (audio.ended) {
+        d.log('watchdog', `audio.ended · ct=${ct.toFixed(1)}s · 章节时长${end.toFixed(1)}s`);
+        if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
+        finishOrNext(audio);
+        return;
+      }
 
       // 片头跳过
       if (cfg.autoSkipIntro && cfg.introSeconds > 0 && ct < cfg.introSeconds) {
@@ -173,26 +184,27 @@ function startAllTimers() {
       }
 
       // 片尾切章
-      if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && ct >= end - cfg.outroSeconds) {
+      if (cfg.autoSkipOutro && cfg.outroSeconds > 0 && end > cfg.outroSeconds && ct >= end - cfg.outroSeconds) {
         d.log('watchdog', `片尾触发 · ct=${ct.toFixed(1)}s · 章节时长${end.toFixed(1)}s · 片尾${cfg.outroSeconds}s · 触发点${(end - cfg.outroSeconds).toFixed(1)}s`);
         if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
         finishOrNext(audio);
         return;
       }
 
-      // 自然结束
-      if (ct >= end) {
+      // 自然结束（ct 到达 end 附近，容差 0.5s）
+      if (ct >= end - 0.5) {
         d.log('watchdog', `自然结束 · ct=${ct.toFixed(1)}s · 章节时长${end.toFixed(1)}s`);
         if (fineInterval) { clearInterval(fineInterval); fineInterval = null; }
         finishOrNext(audio);
         return;
       }
 
-      // 接近片尾 3s 内：启动精细检测（100ms 频率复用 check），精度 ±0.1s
+      // 接近结束 3s 内：启动精细检测
       const outroSec = (cfg.autoSkipOutro && cfg.outroSeconds > 0) ? cfg.outroSeconds : 0;
-      const remain = end - outroSec - ct;
+      const triggerPoint = end - outroSec;
+      const remain = triggerPoint - ct;
       if (remain <= 3 && remain > 0 && !fineInterval) {
-        d.log('watchdog', `精细检测启动 · 距片尾触发${remain.toFixed(1)}s · 频率100ms`);
+        d.log('watchdog', `精细检测启动 · 距触发点${remain.toFixed(1)}s · 频率100ms`);
         fineInterval = setInterval(() => { if (!audio.paused || audio.ended) check(); }, 100);
       }
     }
